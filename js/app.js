@@ -52,6 +52,7 @@ function isCurrentMonthSelected() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initData();
+  initUserAccounts();
   initMonthPicker();
   initSideDrawer();
   initCollapseToggles();
@@ -173,6 +174,313 @@ function initData() {
     });
   }
 }
+
+/**
+ * User Account Management & Auth Controller
+ */
+function initUserAccounts() {
+  const profileBtn = document.getElementById('headerUserProfileBtn');
+  const dropdownMenu = document.getElementById('userProfileDropdownMenu');
+  const modal = document.getElementById('userAccountModal');
+  const closeModalBtn = document.getElementById('closeUserAccountModalBtn');
+  const bannerSwitchBtn = document.getElementById('bannerSwitchAccountBtn');
+
+  // Tab Switchers in Modal
+  const tabCreateBtn = document.getElementById('tabBtnCreateAccount');
+  const tabLoginBtn = document.getElementById('tabBtnLoginAccount');
+  const tabCreateContent = document.getElementById('tabContentCreateAccount');
+  const tabLoginContent = document.getElementById('tabContentLoginAccount');
+
+  const createForm = document.getElementById('createAccountForm');
+  const loginForm = document.getElementById('loginByIdForm');
+  const dropdownCreateBtn = document.getElementById('dropdownCreateNewAccountBtn');
+  const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+
+  const switchTab = (tab) => {
+    if (tab === 'create') {
+      if (tabCreateBtn) tabCreateBtn.classList.add('active');
+      if (tabLoginBtn) tabLoginBtn.classList.remove('active');
+      if (tabCreateContent) tabCreateContent.classList.remove('hidden');
+      if (tabLoginContent) tabLoginContent.classList.add('hidden');
+    } else {
+      if (tabLoginBtn) tabLoginBtn.classList.add('active');
+      if (tabCreateBtn) tabCreateBtn.classList.remove('active');
+      if (tabLoginContent) tabLoginContent.classList.remove('hidden');
+      if (tabCreateContent) tabCreateContent.classList.add('hidden');
+      renderModalSavedAccounts();
+    }
+  };
+
+  if (tabCreateBtn) tabCreateBtn.addEventListener('click', () => switchTab('create'));
+  if (tabLoginBtn) tabLoginBtn.addEventListener('click', () => switchTab('login'));
+
+  // Toggle Header Dropdown
+  if (profileBtn && dropdownMenu) {
+    profileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownMenu.classList.toggle('hidden');
+      renderUserProfile();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!profileBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+        dropdownMenu.classList.add('hidden');
+      }
+    });
+  }
+
+  // Open Modal Helper
+  const openAccountModal = (defaultTab = 'create') => {
+    if (modal) {
+      modal.classList.remove('hidden');
+      switchTab(defaultTab);
+      const currentUser = StorageService.getCurrentUser();
+      if (closeModalBtn) {
+        if (currentUser) {
+          closeModalBtn.classList.remove('hidden');
+        } else {
+          closeModalBtn.classList.add('hidden');
+        }
+      }
+      if (dropdownMenu) dropdownMenu.classList.add('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+  };
+
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', () => {
+      if (StorageService.getCurrentUser() && modal) {
+        modal.classList.add('hidden');
+      }
+    });
+  }
+
+  if (dropdownCreateBtn) dropdownCreateBtn.addEventListener('click', () => openAccountModal('create'));
+  if (bannerSwitchBtn) bannerSwitchBtn.addEventListener('click', () => openAccountModal('login'));
+
+  if (dropdownLogoutBtn) {
+    dropdownLogoutBtn.addEventListener('click', () => {
+      showConfirmModal({
+        title: 'Switch / Log Out Account',
+        message: 'Do you want to switch or log out of your current student account?',
+        confirmBtnText: 'Switch Account',
+        confirmBtnClass: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+        onConfirm: () => {
+          openAccountModal('login');
+        }
+      });
+    });
+  }
+
+  // Handle Create Account Form
+  if (createForm) {
+    createForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('createUserName').value;
+      const id = document.getElementById('createUserId').value;
+      const tag = document.getElementById('createUserTag').value;
+      const budget = parseFloat(document.getElementById('createUserBudget').value);
+      const selectedColorRadio = document.querySelector('input[name="accountAvatarColor"]:checked');
+      const avatarColor = selectedColorRadio ? selectedColorRadio.value : '#6366f1';
+
+      const result = StorageService.createAccount({
+        name,
+        id,
+        tag,
+        budget,
+        avatarColor
+      });
+
+      if (result.success) {
+        if (modal) modal.classList.add('hidden');
+        createForm.reset();
+        AppState.expenses = StorageService.getExpenses();
+        AppState.currency = StorageService.getCurrency();
+        showToast(`Account created for ${result.user.name} (ID: ${result.user.id})!`);
+        renderApp();
+      } else {
+        showToast(result.error || 'Failed to create account', 'error');
+      }
+    });
+  }
+
+  // Handle Login Form
+  if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('loginUserIdInput').value;
+      const result = StorageService.loginAccount(id);
+      if (result.success) {
+        if (modal) modal.classList.add('hidden');
+        loginForm.reset();
+        AppState.expenses = StorageService.getExpenses();
+        AppState.currency = StorageService.getCurrency();
+        showToast(`Switched to ${result.user.name} (ID: ${result.user.id})!`);
+        renderApp();
+      } else {
+        showToast(result.error || 'Account not found', 'error');
+      }
+    });
+  }
+
+  // Check if any user account exists on load; if not, prompt create account modal
+  const activeUser = StorageService.getCurrentUser();
+  if (!activeUser) {
+    setTimeout(() => {
+      openAccountModal('create');
+    }, 250);
+  }
+}
+
+function renderUserProfile() {
+  const user = StorageService.getCurrentUser();
+  const accounts = StorageService.getAccounts();
+
+  // Header Elements
+  const headerAvatar = document.getElementById('headerUserAvatar');
+  const headerName = document.getElementById('headerUserName');
+  const headerId = document.getElementById('headerUserId');
+
+  // Dropdown Elements
+  const dropdownAvatar = document.getElementById('dropdownUserAvatar');
+  const dropdownName = document.getElementById('dropdownUserName');
+  const dropdownId = document.getElementById('dropdownUserId');
+  const dropdownTag = document.getElementById('dropdownUserTag');
+  const dropdownCount = document.getElementById('dropdownAccountsCount');
+  const dropdownList = document.getElementById('dropdownAccountsList');
+
+  // Banner Elements
+  const dashUserName = document.getElementById('dashUserName');
+  const dashUserIdText = document.getElementById('dashUserIdText');
+  const dashUserTagBadge = document.getElementById('dashUserTagBadge');
+
+  if (user) {
+    const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+    const color = user.avatarColor || '#6366f1';
+
+    if (headerAvatar) {
+      headerAvatar.textContent = initials;
+      headerAvatar.style.backgroundColor = color;
+    }
+    if (headerName) headerName.textContent = user.name;
+    if (headerId) headerId.textContent = `ID: ${user.id}`;
+
+    if (dropdownAvatar) {
+      dropdownAvatar.textContent = initials;
+      dropdownAvatar.style.backgroundColor = color;
+    }
+    if (dropdownName) dropdownName.textContent = user.name;
+    if (dropdownId) dropdownId.textContent = `ID: ${user.id}`;
+    if (dropdownTag) dropdownTag.textContent = `• ${user.tag || 'Student'}`;
+    if (dropdownCount) dropdownCount.textContent = `${accounts.length} Account${accounts.length === 1 ? '' : 's'}`;
+
+    if (dashUserName) dashUserName.textContent = user.name;
+    if (dashUserIdText) dashUserIdText.textContent = `ID: ${user.id}`;
+    if (dashUserTagBadge) dashUserTagBadge.textContent = user.tag || 'College Student';
+
+    // Populate saved accounts in header dropdown
+    if (dropdownList) {
+      if (accounts.length <= 1) {
+        dropdownList.innerHTML = '<p class="text-[11px] text-slate-400 px-1 italic">No other accounts saved</p>';
+      } else {
+        dropdownList.innerHTML = accounts.map(acc => {
+          const isCurrent = acc.id.toLowerCase() === user.id.toLowerCase();
+          const accInitials = acc.name ? acc.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+          return `
+            <div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 transition ${isCurrent ? 'bg-indigo-50/70 dark:bg-indigo-950/40' : ''}">
+              <div onclick="switchActiveAccount('${acc.id}')" class="flex items-center space-x-2 min-w-0 flex-1 cursor-pointer">
+                <span class="w-6 h-6 rounded-lg text-[10px] text-white font-extrabold flex items-center justify-center uppercase flex-shrink-0" style="background-color: ${acc.avatarColor || '#6366f1'}">${accInitials}</span>
+                <div class="min-w-0">
+                  <div class="font-bold text-slate-800 dark:text-slate-200 text-[11px] truncate leading-tight">${acc.name}</div>
+                  <div class="text-[9px] text-slate-400 font-mono leading-none">ID: ${acc.id}</div>
+                </div>
+              </div>
+              ${isCurrent ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-indigo-600 text-white font-bold">Active</span>' : `
+                <button onclick="deleteSavedAccount('${acc.id}')" class="p-1 text-slate-400 hover:text-rose-500 rounded transition" title="Delete account">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              `}
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  } else {
+    if (headerName) headerName.textContent = 'Create Account';
+    if (headerId) headerId.textContent = 'ID: -';
+    if (dashUserName) dashUserName.textContent = 'Student';
+    if (dashUserIdText) dashUserIdText.textContent = 'ID: -';
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderModalSavedAccounts() {
+  const container = document.getElementById('modalSavedAccountsList');
+  if (!container) return;
+
+  const accounts = StorageService.getAccounts();
+  const current = StorageService.getCurrentUser();
+
+  if (accounts.length === 0) {
+    container.innerHTML = '<p class="text-xs text-slate-400 p-2 italic text-center">No accounts created on this device yet.</p>';
+    return;
+  }
+
+  container.innerHTML = accounts.map(acc => {
+    const isCurrent = current && acc.id.toLowerCase() === current.id.toLowerCase();
+    const initials = acc.name ? acc.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+    return `
+      <div class="flex items-center justify-between p-2.5 rounded-2xl border border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-800/60 hover:border-indigo-400 transition">
+        <div onclick="switchActiveAccount('${acc.id}')" class="flex items-center space-x-2.5 min-w-0 flex-1 cursor-pointer">
+          <span class="w-8 h-8 rounded-xl text-xs text-white font-extrabold flex items-center justify-center uppercase flex-shrink-0" style="background-color: ${acc.avatarColor || '#6366f1'}">${initials}</span>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 dark:text-slate-100 text-xs truncate">${acc.name}</div>
+            <div class="text-[10px] text-slate-400 font-mono">ID: ${acc.id} &bull; ${acc.tag || 'Student'}</div>
+          </div>
+        </div>
+        <div>
+          ${isCurrent ? '<span class="text-[10px] px-2 py-1 rounded-xl bg-indigo-600 text-white font-bold">Active</span>' : `
+            <button onclick="switchActiveAccount('${acc.id}')" class="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 transition cursor-pointer">Switch</button>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function switchActiveAccount(id) {
+  const result = StorageService.loginAccount(id);
+  if (result.success) {
+    const modal = document.getElementById('userAccountModal');
+    const dropdownMenu = document.getElementById('userProfileDropdownMenu');
+    if (modal) modal.classList.add('hidden');
+    if (dropdownMenu) dropdownMenu.classList.add('hidden');
+
+    AppState.expenses = StorageService.getExpenses();
+    AppState.currency = StorageService.getCurrency();
+    showToast(`Switched to ${result.user.name} (ID: ${result.user.id})`);
+    renderApp();
+  }
+}
+
+function deleteSavedAccount(id) {
+  showConfirmModal({
+    title: 'Delete Student Account',
+    message: `Are you sure you want to delete account "${id}" and all its saved diary expenses?`,
+    confirmBtnText: 'Delete Account',
+    confirmBtnClass: 'bg-rose-600 hover:bg-rose-700 text-white',
+    onConfirm: () => {
+      StorageService.deleteAccount(id);
+      AppState.expenses = StorageService.getExpenses();
+      showToast(`Account "${id}" deleted`);
+      renderApp();
+    }
+  });
+}
+
 
 /**
  * Month & Year Picker Navigation Controller
@@ -1011,6 +1319,7 @@ function renderApp() {
   const stats = computeStatistics();
 
   updateHeaderAndLabels();
+  renderUserProfile();
   renderMetricCards(stats);
   renderCharts(stats);
   renderMonthlyTable();
