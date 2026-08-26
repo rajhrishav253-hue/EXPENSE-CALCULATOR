@@ -1,0 +1,562 @@
+/* Modern Stylesheet for Student Personal Expense Calculator */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font-main);
+  transition: background-color 0.25s ease, color 0.25s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.8);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(99, 102, 241, 0.35);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Glassmorphic & Modern Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-card {
+  background: rgba(17, 24, 39, 0.88);
+}
+
+.metric-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.08);
+}
+
+.dark .metric-card:hover {
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.45);
+}
+
+/* Category Badges for Student Calculator */
+.cat-badge-food {
+  background-color: #ffedd5;
+  color: #c2410c;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+.cat-badge-travel {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid rgba(2, 132, 199, 0.2);
+}
+.cat-badge-shopping {
+  background-color: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid rgba(147, 51, 234, 0.2);
+}
+.cat-badge-education {
+  background-color: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+}
+.cat-badge-entertainment {
+  background-color: #fce7f3;
+  color: #be185d;
+  border: 1px solid rgba(219, 39, 119, 0.2);
+}
+.cat-badge-bills {
+  background-color: #fef3c7;
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+.cat-badge-health {
+  background-color: #ffe4e6;
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.2);
+}
+.cat-badge-other {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+/* Dark Mode Badges */
+.dark .cat-badge-food {
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #fdba74;
+  border-color: rgba(249, 115, 22, 0.35);
+}
+.dark .cat-badge-travel {
+  background-color: rgba(2, 132, 199, 0.2);
+  color: #7dd3fc;
+  border-color: rgba(2, 132, 199, 0.35);
+}
+.dark .cat-badge-shopping {
+  background-color: rgba(147, 51, 234, 0.2);
+  color: #d8b4fe;
+  border-color: rgba(147, 51, 234, 0.35);
+}
+.dark .cat-badge-education {
+  background-color: rgba(13, 148, 136, 0.2);
+  color: #5eead4;
+  border-color: rgba(13, 148, 136, 0.35);
+}
+.dark .cat-badge-entertainment {
+  background-color: rgba(219, 39, 119, 0.2);
+  color: #f9a8d4;
+  border-color: rgba(219, 39, 119, 0.35);
+}
+.dark .cat-badge-bills {
+  background-color: rgba(217, 119, 6, 0.2);
+  color: #fde047;
+  border-color: rgba(217, 119, 6, 0.35);
+}
+.dark .cat-badge-health {
+  background-color: rgba(225, 29, 72, 0.2);
+  color: #fda4af;
+  border-color: rgba(225, 29, 72, 0.35);
+}
+.dark .cat-badge-other {
+  background-color: rgba(100, 116, 139, 0.2);
+  color: #cbd5e1;
+  border-color: rgba(100, 116, 139, 0.35);
+}
+
+/* Category Selection Radio Tile */
+.category-radio-card:has(input:checked) {
+  border-color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.dark .category-radio-card:has(input:checked) {
+  background-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Quick Add Preset Pill */
+.preset-pill {
+  transition: all 0.15s ease;
+}
+
+.preset-pill:hover {
+  transform: translateY(-1px);
+}
+
+/* Live Amount In Words Assistant */
+.amount-words-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #e0e7ff;
+  transition: all 0.2s ease;
+}
+
+.dark .amount-words-card {
+  background-color: rgba(79, 70, 229, 0.15);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+/* Denomination Buttons */
+.denom-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.625rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.denom-chip:hover {
+  background-color: #e0e7ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+  transform: translateY(-1px);
+}
+
+.denom-chip:active {
+  transform: scale(0.96);
+}
+
+.dark .denom-chip {
+  background-color: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+
+.dark .denom-chip:hover {
+  background-color: rgba(99, 102, 241, 0.25);
+  color: #e0e7ff;
+  border-color: rgba(99, 102, 241, 0.45);
+}
+
+/* Month & Year Navigation Pill */
+.month-picker-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: #f1f5f9;
+  padding: 0.25rem 0.35rem;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dark .month-picker-container {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.month-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.625rem;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.month-nav-btn:hover {
+  background-color: #ffffff;
+  color: #4f46e5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark .month-nav-btn:hover {
+  background-color: #0f172a;
+  color: #818cf8;
+}
+
+.month-picker-select {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1e293b;
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.month-picker-select:hover {
+  background-color: #ffffff;
+}
+
+.dark .month-picker-select {
+  color: #f1f5f9;
+}
+
+.dark .month-picker-select:hover {
+  background-color: #0f172a;
+}
+
+/* Handwritten / Casual Student Tag */
+.student-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Yearly Month Card in 12-Month Grid */
+.yearly-month-card {
+  padding: 0.875rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.yearly-month-card:hover {
+  transform: translateY(-2px);
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.dark .yearly-month-card {
+  background-color: #111827;
+  border-color: #1f2937;
+}
+
+.dark .yearly-month-card:hover {
+  border-color: #3730a3;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.yearly-month-card.active-month-card {
+  border-color: #6366f1;
+  background-color: #eef2ff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.dark .yearly-month-card.active-month-card {
+  border-color: #818cf8;
+  background-color: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+}
+
+/* Dedicated Side Drawer for Add Expense */
+.side-drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 480px;
+  background-color: #ffffff;
+  z-index: 60;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+}
+
+.dark .side-drawer-panel {
+  background-color: #0f172a;
+  border-left: 1px solid #1e293b;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.6);
+}
+
+.side-drawer-panel.drawer-open {
+  transform: translateX(0);
+}
+
+.side-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 55;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.side-drawer-backdrop.backdrop-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Explicit Delete Action Button */
+.btn-delete-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #e11d48;
+  background-color: #ffe4e6;
+  border: 1px solid #fecdd3;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-row:hover {
+  background-color: #e11d48;
+  color: #ffffff;
+  border-color: #e11d48;
+  transform: translateY(-1px);
+}
+
+.dark .btn-delete-row {
+  background-color: rgba(225, 29, 72, 0.15);
+  color: #fda4af;
+  border-color: rgba(225, 29, 72, 0.3);
+}
+
+.dark .btn-delete-row:hover {
+  background-color: #e11d48;
+  color: #ffffff;
+  border-color: #e11d48;
+}
+
+/* Floating Action Button for Add Expense */
+.floating-add-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.875rem;
+  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.5);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  cursor: pointer;
+}
+
+.floating-add-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 30px -5px rgba(79, 70, 229, 0.65);
+}
+
+.floating-add-btn:active {
+  transform: scale(0.96);
+}
+
+/* Section Collapse / Expand (^ / ⌄) Toggle Styles */
+.collapse-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.collapse-toggle-btn:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  transform: translateY(-1px);
+}
+
+.dark .collapse-toggle-btn {
+  color: #cbd5e1;
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.dark .collapse-toggle-btn:hover {
+  background-color: #334155;
+  color: #ffffff;
+}
+
+.collapse-toggle-btn .toggle-icon {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapse-toggle-btn.is-collapsed .toggle-icon {
+  transform: rotate(180deg);
+}
+
+.collapsible-body {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-body.is-hidden {
+  display: none !important;
+}
+
+/* Print Stylesheet */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  header, nav, aside, #addExpenseQuickBtn, #mobileBottomNav, .no-print, button:not(.print-allow), .modal-backdrop {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .glass-card {
+    background: transparent !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+}

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusSpend • Student Expense & Pocket Money Diary</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            gray: {
+              850: '#172033',
+              900: '#0f172a',
+              950: '#020617'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 dark:bg-gray-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white pb-16 sm:pb-0">
+
+  <!-- Top Sticky Header Bar -->
+  <header class="sticky top-0 z-30 bg-white/85 dark:bg-gray-900/85 backdrop-blur-md border-b border-slate-200/80 dark:border-gray-800 px-4 sm:px-8 py-3 flex items-center justify-between">
+    
+    <!-- Brand Logo -->
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-500/25">
+        <i data-lucide="wallet" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">CampusSpend</h1>
+        <p class="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">Student Expense Diary</p>
+      </div>
+    </div>
+
+    <!-- Header Actions (Month/Year Picker, Currency, Theme, Open Side Drawer Button) -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      
+      <!-- Month & Year Navigator Pill -->
+      <div class="month-picker-container flex items-center">
+        <button id="headerPrevMonthBtn" type="button" class="month-nav-btn" title="Previous Month">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <select id="headerPeriodSelect" class="month-picker-select" title="Choose Month or Year">
+          <!-- Dynamically populated via JS -->
+        </select>
+        <button id="headerNextMonthBtn" type="button" class="month-nav-btn" title="Next Month">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Currency Selector -->
+      <div class="relative">
+        <select id="headerCurrencySelect" class="bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold rounded-xl px-3 py-2 border-0 focus:ring-2 focus:ring-indigo-500 cursor-pointer transition">
+          <!-- Populated dynamically (Default INR ₹) -->
+        </select>
+      </div>
+
+      <!-- Theme Toggle Button -->
+      <button data-theme-toggle class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition" title="Toggle Light / Dark Mode">
+        <i data-lucide="moon" class="w-5 h-5 theme-icon"></i>
+      </button>
+
+      <!-- Open Dedicated Side Drawer Button -->
+      <button data-open-side-drawer class="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-indigo-500/20 transition cursor-pointer">
+        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+        <span>+ Add Spend</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-7">
+
+    <!-- ========================================================= -->
+    <!-- 1. GREETING BANNER & ACTIVE PERIOD STATUS                 -->
+    <!-- ========================================================= -->
+    <div class="p-6 sm:p-7 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 rounded-3xl text-white shadow-xl shadow-indigo-600/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="space-y-1.5">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold text-indigo-100 backdrop-blur-sm">
+            <i data-lucide="graduation-cap" class="w-3.5 h-3.5"></i>
+            <span>College Expense Tracker</span>
+          </span>
+          <span id="dashActivePeriodBadge" class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30 text-xs font-bold">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            <span id="dashActivePeriodText">August 2026</span>
+          </span>
+        </div>
+        <h2 id="dashGreetingTitle" class="text-xl sm:text-2xl font-extrabold tracking-tight">Hey! 👋 Here's your pocket money summary</h2>
+        <p id="dashGreetingSubtitle" class="text-xs sm:text-sm text-indigo-100/90">Keep track of canteen thalis, chai, travel, and campus essentials in Indian Rupees.</p>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button data-open-side-drawer class="px-4 py-2.5 bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center space-x-1.5 cursor-pointer">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-600"></i>
+          <span>+ Log Expense</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 2. CORE METRICS: TOTAL EXPENSE, YEARLY & MONTHLY RECORD   -->
+    <!-- ========================================================= -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      
+      <!-- Card 1: TOTAL EXPENSE (All-Time) -->
+      <div class="metric-card p-5 bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/80 dark:border-gray-800 shadow-sm flex items-center justify-between">
+        <div class="space-y-1 min-w-0 pr-2">
+          <p class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Expense</p>
+          <h3 id="statTotalExpense" class="text-2xl font-extrabold text-slate-900 dark:text-white">₹0.00</h3>
+          <p id="statTotalExpenseWords" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 truncate">Zero Rupees</p>
+          <p class="text-[10px] text-slate-400 font-medium">All-time recorded spends</p>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="credit-card" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Card 2: YEARLY RECORD -->
+      <div class="metric-card p-5 bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/80 dark:border-gray-800 shadow-sm flex items-center justify-between">
+        <div class="space-y-1 min-w-0 pr-2">
+          <p id="statYearlyRecordLabel" class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Yearly Record (2026)</p>
+          <h3 id="statYearlyRecord" class="text-2xl font-extrabold text-slate-900 dark:text-white">₹0.00</h3>
+          <p id="statYearlyRecordWords" class="text-[11px] font-semibold text-purple-600 dark:text-purple-400 truncate">Zero Rupees</p>
+          <p id="statYearlyRecordSubtext" class="text-[10px] text-slate-400 font-medium">Total spent in this year</p>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="calendar" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Card 3: MONTHLY EXPENSE -->
+      <div class="metric-card p-5 bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/80 dark:border-gray-800 shadow-sm flex items-center justify-between">
+        <div class="space-y-1 min-w-0 pr-2">
+          <p id="statMonthlyExpenseLabel" class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Monthly Expense (August)</p>
+          <h3 id="statMonthlyExpense" class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">₹0.00</h3>
+          <p id="statMonthlyExpenseWords" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">Zero Rupees</p>
+          <p id="statMonthlyExpenseSubtext" class="text-[10px] text-slate-400 font-medium">In selected month</p>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="pie-chart" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Card 4: TODAY'S EXPENSE -->
+      <div class="metric-card p-5 bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/80 dark:border-gray-800 shadow-sm flex items-center justify-between">
+        <div class="space-y-1 min-w-0 pr-2">
+          <p class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Today's Spends</p>
+          <h3 id="statTodayExpense" class="text-2xl font-extrabold text-amber-600 dark:text-amber-400">₹0.00</h3>
+          <p id="statTodayExpenseWords" class="text-[11px] font-semibold text-amber-600 dark:text-amber-400 truncate">Zero Rupees</p>
+          <p class="text-[10px] text-slate-400 font-medium">Logged today</p>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="coffee" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 3. EXPENSE CHARTS: SPENDING TREND & CATEGORY SHARE        -->
+    <!-- ========================================================= -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between px-1">
+        <h3 class="text-sm font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center space-x-2">
+          <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-500"></i>
+          <span>Visual Expense Charts</span>
+        </h3>
+        <button id="toggleChartsBtn" type="button" class="collapse-toggle-btn" title="Hide/Show Expense Charts">
+          <span class="toggle-text">Hide</span>
+          <i data-lucide="chevron-up" class="w-4 h-4 toggle-icon"></i>
+        </button>
+      </div>
+
+      <div id="chartsSectionBody" class="collapsible-body grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Chart 1: Spending Velocity Trend (7 Cols) -->
+        <div class="lg:col-span-7 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm p-6 space-y-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                <span>Expense Spending Trend</span>
+                <span class="text-xs px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold active-period-label">August 2026</span>
+              </h3>
+              <p class="text-xs text-slate-400">Daily spending velocity in Rupees (₹)</p>
+            </div>
+            <div class="flex items-center space-x-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl">
+              <button id="trendChartBarBtn" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition">Bar</button>
+              <button id="trendChartLineBtn" class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 transition">Line</button>
+            </div>
+          </div>
+
+          <div class="relative h-64 sm:h-72">
+            <canvas id="expenseTrendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Category Breakdown Doughnut (5 Cols) -->
+        <div class="lg:col-span-5 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm p-6 space-y-4 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Category Distribution</h3>
+            <p class="text-xs text-slate-400">Where money went in <span class="active-period-label font-bold text-indigo-600 dark:text-indigo-400">August 2026</span></p>
+          </div>
+
+          <div class="relative h-64 sm:h-72 flex items-center justify-center">
+            <canvas id="expenseCategoryChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 4. MONTHLY EXPENSE RECORD WITH HIDE/SHOW (^) TOGGLE       -->
+    <!-- ========================================================= -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm p-6 space-y-4">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-gray-800">
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+            <span>Monthly Record:</span>
+            <span class="active-period-label text-indigo-600 dark:text-indigo-400 font-extrabold">August 2026</span>
+          </h3>
+          <p class="text-xs text-slate-400">All expenses logged for this month with edit and delete controls</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="monthlyCountBadge" class="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-xs font-bold text-slate-700 dark:text-slate-300">0 spends</span>
+          <span class="text-xs font-extrabold text-slate-900 dark:text-white">Month Total: <strong id="monthlyTotalDisplay" class="text-indigo-600 dark:text-indigo-400">₹0.00</strong></span>
+          
+          <button data-open-side-drawer class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center space-x-1">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>+ Add Spend</span>
+          </button>
+
+          <!-- ^ Toggle Button to Hide / Show Monthly Expense -->
+          <button id="toggleMonthlyRecordBtn" type="button" class="collapse-toggle-btn" title="Hide/Show Monthly Expense">
+            <span class="toggle-text">Hide</span>
+            <i data-lucide="chevron-up" class="w-4 h-4 toggle-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Body for Monthly Record -->
+      <div id="monthlyRecordBody" class="collapsible-body space-y-4">
+        <!-- Quick Search & Category Filter -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="expenseSearchInput" placeholder="Search spend item, note, category..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+
+          <div>
+            <select id="expenseCategoryFilter" class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer">
+              <option value="all">All Categories</option>
+              <!-- Populated via JS -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="monthlyEmptyState" class="hidden text-center py-12 text-slate-400 space-y-3">
+          <i data-lucide="inbox" class="w-10 h-10 mx-auto opacity-50"></i>
+          <p class="text-sm font-medium">No spends recorded for <span class="active-period-label font-bold">this period</span>.</p>
+          <button data-open-side-drawer class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow">
+            + Record First Expense
+          </button>
+        </div>
+
+        <!-- Table Container -->
+        <div id="monthlyTableContainer" class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-100 dark:border-gray-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <th class="py-2.5 px-3">Date</th>
+                <th class="py-2.5 px-3">Item & Details</th>
+                <th class="py-2.5 px-3">Category</th>
+                <th class="py-2.5 px-3">Payment</th>
+                <th class="py-2.5 px-3 text-right">Amount (₹)</th>
+                <th class="py-2.5 px-3 text-right">Manage / Delete</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyTableBody" class="divide-y divide-slate-100 dark:divide-gray-800/60">
+              <!-- Dynamically populated with prominent Delete buttons -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 5. YEARLY RECORD: 12-MONTH RECORD BREAKDOWN GRID (^)      -->
+    <!-- ========================================================= -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm p-6 sm:p-7 space-y-5">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-gray-800">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+              Yearly Record &bull; <span id="yearlyGridYearLabel" class="text-purple-600 dark:text-purple-400 font-extrabold">2026</span> Month-by-Month Breakdown
+            </h3>
+            <p class="text-xs text-slate-400">Click any month to inspect its spending and detailed records</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Year Total: <span id="yearlyGridTotalDisplay" class="text-base font-extrabold text-purple-600 dark:text-purple-400">₹0.00</span>
+          </div>
+
+          <!-- ^ Toggle Button to Hide / Show Yearly Expense -->
+          <button id="toggleYearlyRecordBtn" type="button" class="collapse-toggle-btn" title="Hide/Show Yearly Expense">
+            <span class="toggle-text">Hide</span>
+            <i data-lucide="chevron-up" class="w-4 h-4 toggle-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Body for Yearly Record (12-Month Grid) -->
+      <div id="yearlyRecordBody" class="collapsible-body">
+        <div id="yearlyMonthsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <!-- Dynamically rendered (Jan to Dec) -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 6. SIMPLE DATA BACKUP & RESTORE                           -->
+    <!-- ========================================================= -->
+    <div class="flex flex-wrap items-center justify-between gap-3 p-4 bg-slate-100 dark:bg-gray-900/60 rounded-2xl border border-slate-200 dark:border-gray-800 text-xs text-slate-600 dark:text-slate-400">
+      <div class="flex items-center space-x-2">
+        <i data-lucide="database" class="w-4 h-4 text-indigo-500"></i>
+        <span>Local Data Storage (Saved automatically in your browser)</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="exportCSVBtn" class="px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition">
+          Download CSV
+        </button>
+        <button id="reloadDemoDataBtn" class="px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition">
+          Reload Sample Data
+        </button>
+        <button id="clearAllExpensesBtn" class="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold transition">
+          Delete All Spends
+        </button>
+      </div>
+    </div>
+
+    <!-- Warm Human Student Footer -->
+    <footer class="pt-4 pb-6 text-center text-xs text-slate-400 dark:text-slate-500 space-y-1">
+      <p class="font-bold text-slate-700 dark:text-slate-300">CampusSpend &bull; College Student Expense & Pocket Money Diary</p>
+      <p class="text-[11px]">Handcrafted with ❤️ &bull; Yearly Records, Monthly Spends, Total Expense, Visual Charts & Quick Spend Logging</p>
+    </footer>
+
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- DEDICATED SEPARATE SIDE DRAWER TO ADD EXPENSE             -->
+  <!-- ========================================================= -->
+  <div id="sideDrawerBackdrop" class="side-drawer-backdrop"></div>
+  
+  <aside id="addExpenseSideDrawer" class="side-drawer-panel p-6 space-y-5" aria-label="Add Expense Drawer">
+    
+    <!-- Drawer Header -->
+    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Add New Expense</h3>
+          <p class="text-xs text-slate-400">Record a spend to your diary</p>
+        </div>
+      </div>
+      <button id="closeSideDrawerBtn" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-gray-800 transition" title="Close Drawer">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Quick Presets -->
+    <div class="space-y-1.5">
+      <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Quick Presets:</span>
+      <div class="flex flex-wrap gap-1.5">
+        <button type="button" class="preset-chip denom-chip" data-preset-name="Campus Canteen Thali" data-preset-amount="120" data-preset-category="Food">🍱 Thali (₹120)</button>
+        <button type="button" class="preset-chip denom-chip" data-preset-name="Chai & Samosa" data-preset-amount="45" data-preset-category="Food">☕ Chai (₹45)</button>
+        <button type="button" class="preset-chip denom-chip" data-preset-name="Auto Share to Metro" data-preset-amount="50" data-preset-category="Travel">🛺 Auto (₹50)</button>
+        <button type="button" class="preset-chip denom-chip" data-preset-name="Notes Xerox & Binding" data-preset-amount="180" data-preset-category="Education">📚 Xerox (₹180)</button>
+        <button type="button" class="preset-chip denom-chip" data-preset-name="Hostel WiFi Split" data-preset-amount="499" data-preset-category="Bills">⚡ WiFi (₹499)</button>
+        <button type="button" class="preset-chip denom-chip" data-preset-name="Hostel Maggi & Snacks" data-preset-amount="350" data-preset-category="Food">🍜 Maggi (₹350)</button>
+      </div>
+    </div>
+
+    <!-- Main Add Form inside Side Drawer -->
+    <form id="mainAddExpenseForm" class="space-y-4 pt-1">
+      
+      <!-- Expense Title -->
+      <div class="space-y-1">
+        <label for="addExpenseName" class="text-xs font-bold text-slate-600 dark:text-slate-300">Expense Title / Item</label>
+        <input type="text" id="addExpenseName" required placeholder="e.g. Canteen Lunch, Metro pass, Coffee" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+      </div>
+
+      <!-- Amount with Rupees & Words -->
+      <div class="space-y-1.5">
+        <label for="addExpenseAmount" class="text-xs font-bold text-slate-600 dark:text-slate-300">
+          Amount (<span class="active-currency-symbol font-bold">₹</span>)
+        </label>
+        <div class="relative">
+          <span class="active-currency-symbol absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
+          <input type="number" id="addExpenseAmount" step="any" min="0.01" required placeholder="0.00" class="w-full pl-8 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-base font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+        </div>
+
+        <!-- Live Amount In Words Assistant -->
+        <div id="addExpenseAmountInWords" class="amount-words-card">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 flex-shrink-0 text-indigo-500"></i>
+          <span class="words-output font-semibold">₹0.00 • Zero Rupees</span>
+        </div>
+
+        <!-- Quick Denominations (+₹10, +₹50, +₹100, +₹500, +₹1000, Clear) -->
+        <div id="addExpenseDenoms" class="flex flex-wrap gap-1.5 pt-1">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+      <!-- Category Selection -->
+      <div class="space-y-1.5">
+        <label class="text-xs font-bold text-slate-600 dark:text-slate-300">Category</label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold">
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Food" checked class="text-indigo-600 focus:ring-indigo-500">
+            <span>🍔 Food</span>
+          </label>
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Travel" class="text-indigo-600 focus:ring-indigo-500">
+            <span>🚌 Travel</span>
+          </label>
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Education" class="text-indigo-600 focus:ring-indigo-500">
+            <span>📚 Study</span>
+          </label>
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Bills" class="text-indigo-600 focus:ring-indigo-500">
+            <span>⚡ Bills</span>
+          </label>
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Entertainment" class="text-indigo-600 focus:ring-indigo-500">
+            <span>🎬 Fun</span>
+          </label>
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Shopping" class="text-indigo-600 focus:ring-indigo-500">
+            <span>🛍️ Shop</span>
+          </label>
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Health" class="text-indigo-600 focus:ring-indigo-500">
+            <span>💊 Health</span>
+          </label>
+          <label class="flex items-center space-x-1.5 p-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="addExpenseCategoryRadio" value="Other" class="text-indigo-600 focus:ring-indigo-500">
+            <span>🏷️ Other</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Date & Payment Mode -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <label for="addExpenseDate" class="text-xs font-bold text-slate-600 dark:text-slate-300">Date</label>
+          <input type="date" id="addExpenseDate" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div class="space-y-1">
+          <label for="addExpensePaymentMethod" class="text-xs font-bold text-slate-600 dark:text-slate-300">Payment Mode</label>
+          <select id="addExpensePaymentMethod" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="UPI / Online">UPI / GPay / Paytm</option>
+            <option value="Cash">Cash</option>
+            <option value="Debit Card">Debit Card</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Student Wallet">Student Wallet</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Note -->
+      <div class="space-y-1">
+        <label for="addExpenseDescription" class="text-xs font-bold text-slate-600 dark:text-slate-300">Short Note (Optional)</label>
+        <input type="text" id="addExpenseDescription" placeholder="e.g. Yellow line metro, Shared with roommates" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+      </div>
+
+      <div class="pt-2 flex items-center space-x-2">
+        <button type="button" id="cancelSideDrawerBtn" class="flex-1 py-3 px-4 rounded-2xl border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-gray-800 transition">
+          Cancel
+        </button>
+        <button type="submit" class="flex-2 py-3 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-500/20 active:scale-98 transition flex items-center justify-center space-x-2">
+          <i data-lucide="check-circle" class="w-4 h-4"></i>
+          <span>Save to Diary</span>
+        </button>
+      </div>
+
+    </form>
+  </aside>
+
+  <!-- Floating Action Button for Quick Add -->
+  <button data-open-side-drawer class="floating-add-btn" title="Add Expense">
+    <i data-lucide="plus" class="w-5 h-5"></i>
+    <span>Add Spend</span>
+  </button>
+
+  <!-- ============================================== -->
+  <!-- MODALS & TOAST NOTIFICATIONS                   -->
+  <!-- ============================================== -->
+
+  <!-- Edit Expense Modal -->
+  <div id="editExpenseModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl border border-slate-200 dark:border-gray-800 shadow-2xl p-6 space-y-5 animate-fade-in">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <i data-lucide="edit-3" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Edit Expense Record</h3>
+        </div>
+        <button data-close-edit-modal class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="editExpenseForm" class="space-y-4">
+        
+        <div class="space-y-1">
+          <label for="editExpenseName" class="text-xs font-bold text-slate-500 dark:text-slate-400">Expense Title</label>
+          <input type="text" id="editExpenseName" required class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="editExpenseAmount" class="text-xs font-bold text-slate-500 dark:text-slate-400">Amount (<span class="active-currency-symbol font-bold">₹</span>)</label>
+            <input type="number" id="editExpenseAmount" step="any" min="0.01" required class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+
+          <div class="space-y-1">
+            <label for="editExpenseCategory" class="text-xs font-bold text-slate-500 dark:text-slate-400">Category</label>
+            <select id="editExpenseCategory" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Live Amount in Words for Edit -->
+        <div id="editExpenseAmountInWords" class="amount-words-card">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 flex-shrink-0 text-indigo-500"></i>
+          <span class="words-output">₹0.00 • Zero Rupees</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="editExpenseDate" class="text-xs font-bold text-slate-500 dark:text-slate-400">Date</label>
+            <input type="date" id="editExpenseDate" required class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+
+          <div class="space-y-1">
+            <label for="editExpensePayment" class="text-xs font-bold text-slate-500 dark:text-slate-400">Payment Mode</label>
+            <select id="editExpensePayment" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <option value="UPI / Online">UPI / GPay / Paytm</option>
+              <option value="Cash">Cash</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Student Wallet">Student Wallet</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label for="editExpenseDescription" class="text-xs font-bold text-slate-500 dark:text-slate-400">Short Note</label>
+          <input type="text" id="editExpenseDescription" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div class="flex items-center justify-end space-x-2 pt-2">
+          <button type="button" data-close-edit-modal class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-gray-800 transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/20 transition">
+            Save Changes
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Dedicated Confirmation Modal for Deleting Expenses -->
+  <div id="confirmationModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl border border-slate-200 dark:border-gray-800 shadow-2xl p-6 space-y-4 animate-fade-in text-center">
+      <div class="w-12 h-12 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+        <i data-lucide="trash-2" class="w-6 h-6"></i>
+      </div>
+      <div class="space-y-1">
+        <h4 id="confirmModalTitle" class="text-base font-bold text-slate-900 dark:text-white">Delete Expense Record</h4>
+        <p id="confirmModalMessage" class="text-xs text-slate-500 dark:text-slate-400">Are you sure you want to delete this expense record?</p>
+      </div>
+      <div class="flex items-center justify-center space-x-2 pt-2">
+        <button data-close-confirm-modal class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-gray-800 transition">
+          Cancel
+        </button>
+        <button id="confirmActionButton" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow transition flex items-center space-x-1.5">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <span>Delete Expense</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- Application Logic Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
