@@ -5,12 +5,12 @@
  */
 
 const STORAGE_KEYS = {
-  EXPENSES: 'student_expenses_v2',
-  BUDGET: 'student_budget_v2',
-  CURRENCY: 'student_currency_v2',
-  THEME: 'student_theme_v2',
-  INITIALIZED: 'student_expenses_initialized_v2',
-  PERIOD: 'student_selected_period_v2'
+  EXPENSES: 'student_expenses_user_v3',
+  BUDGET: 'student_budget_v3',
+  CURRENCY: 'student_currency_v3',
+  THEME: 'student_theme_v3',
+  INITIALIZED: 'student_expenses_initialized_v3',
+  PERIOD: 'student_selected_period_v3'
 };
 
 const CATEGORIES = [
@@ -110,20 +110,20 @@ const StorageService = {
   },
 
   /**
-   * Ensure data is initialized on the very first run.
-   * If already initialized once, it NEVER overwrites or resets user data!
+   * Ensure storage is initialized cleanly with a 00 blank slate.
+   * Does NOT add any demo data inside automatically.
+   * Expenses only show when the user logs them.
    */
   ensureInitialized() {
     if (this.isInitialized()) {
-      return false; // Already initialized, keep existing user data intact
+      return false;
     }
 
-    const existingExpenses = this.getExpenses();
-    if (!existingExpenses || existingExpenses.length === 0) {
-      this.seedDemoStudentData();
-    } else {
-      this.setInitialized();
+    // Initialize with a clean 00 state (empty array)
+    if (this._getItem(STORAGE_KEYS.EXPENSES) === null) {
+      this.saveExpenses([]);
     }
+    this.setInitialized();
     return true;
   },
 

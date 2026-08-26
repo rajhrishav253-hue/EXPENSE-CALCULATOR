@@ -56,6 +56,15 @@ const ChartManager = {
     if (labels.length === 0 || data.every(v => v === 0)) {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = colors.mutedText;
+      ctx.font = '600 13px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('No expenses logged yet', canvas.width / 2, canvas.height / 2 - 10);
+      ctx.font = '500 11px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Add a spend to see category distribution', canvas.width / 2, canvas.height / 2 + 12);
+      ctx.restore();
       return;
     }
 
