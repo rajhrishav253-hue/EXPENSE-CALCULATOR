@@ -117,11 +117,6 @@ function initData() {
   AppState.expenses = StorageService.getExpenses();
   AppState.currency = StorageService.getCurrency();
 
-  // Seed demo data if fresh user
-  if (!AppState.expenses || AppState.expenses.length === 0) {
-    AppState.expenses = StorageService.seedDemoStudentData();
-  }
-
   // Populate Header Currency Selector
   const currencySelect = document.getElementById('headerCurrencySelect');
   if (currencySelect) {
