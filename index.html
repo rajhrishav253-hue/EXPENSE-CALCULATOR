@@ -94,63 +94,14 @@
       </button>
 
       <!-- User Account & Profile Access Pill -->
-      <div class="relative" id="userProfileDropdownContainer">
-        <button id="headerUserProfileBtn" type="button" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200/80 dark:border-gray-700/80 shadow-sm transition cursor-pointer" title="Manage Student Account & Switch Profile">
-          <span id="headerUserAvatar" class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[11px] font-extrabold uppercase shadow-sm">U</span>
-          <div class="text-left hidden md:block max-w-[110px] truncate leading-none">
-            <span id="headerUserName" class="block truncate font-extrabold text-[12px] text-slate-800 dark:text-slate-100">Student</span>
-            <span id="headerUserId" class="block text-[10px] text-slate-400 font-mono font-semibold truncate mt-0.5">ID: STU</span>
-          </div>
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
-        </button>
-
-        <!-- Profile & Account Switcher Dropdown Menu -->
-        <div id="userProfileDropdownMenu" class="hidden absolute right-0 mt-2 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-gray-800 py-3 z-50 animate-fade-in text-xs space-y-3">
-          
-          <!-- Current Active Profile Header -->
-          <div class="px-4 pb-2 border-b border-slate-100 dark:border-gray-800 flex items-center space-x-3">
-            <div id="dropdownUserAvatar" class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm font-extrabold uppercase shadow-md flex-shrink-0">
-              U
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Student Profile</p>
-              <h4 id="dropdownUserName" class="text-sm font-extrabold text-slate-900 dark:text-white truncate">Student User</h4>
-              <div class="flex items-center space-x-1.5 mt-0.5">
-                <span id="dropdownUserId" class="px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-mono font-bold text-[10px]">ID: STU</span>
-                <span id="dropdownUserTag" class="text-slate-400 text-[10px] truncate">• College</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Switch Accounts List -->
-          <div class="px-3 space-y-1.5">
-            <div class="flex items-center justify-between px-1">
-              <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Saved Accounts:</span>
-              <span id="dropdownAccountsCount" class="text-[10px] font-semibold text-slate-400">1 Account</span>
-            </div>
-            <div id="dropdownAccountsList" class="space-y-1 max-h-36 overflow-y-auto pr-1">
-              <!-- Populated dynamically via JS -->
-            </div>
-          </div>
-
-          <!-- Account Action Buttons -->
-          <div class="px-3 pt-2 border-t border-slate-100 dark:border-gray-800 space-y-1">
-            <button id="dropdownEditProfileBtn" type="button" class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-gray-800 font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-2 transition cursor-pointer">
-              <i data-lucide="edit-3" class="w-4 h-4 text-indigo-500"></i>
-              <span>Edit Name & Profile</span>
-            </button>
-            <button id="dropdownCreateNewAccountBtn" type="button" class="w-full text-left px-3 py-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-bold text-indigo-600 dark:text-indigo-400 flex items-center space-x-2 transition cursor-pointer">
-              <i data-lucide="user-plus" class="w-4 h-4"></i>
-              <span>+ Create New Account</span>
-            </button>
-            <button id="dropdownLogoutBtn" type="button" class="w-full text-left px-3 py-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold text-rose-600 dark:text-rose-400 flex items-center space-x-2 transition cursor-pointer">
-              <i data-lucide="log-out" class="w-4 h-4"></i>
-              <span>Switch / Log Out</span>
-            </button>
-          </div>
-
+      <button id="headerUserProfileBtn" type="button" class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200/80 dark:border-gray-700/80 shadow-sm transition cursor-pointer" title="Edit Student Profile (Name & ID)">
+        <span id="headerUserAvatar" class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[11px] font-extrabold uppercase shadow-sm">RR</span>
+        <div class="text-left hidden md:block max-w-[120px] truncate leading-none">
+          <span id="headerUserName" class="block truncate font-extrabold text-[12px] text-slate-800 dark:text-slate-100">Rishav Raj</span>
+          <span id="headerUserId" class="block text-[10px] text-slate-400 font-mono font-semibold truncate mt-0.5">ID: STU-2026</span>
         </div>
-      </div>
+        <i data-lucide="user" class="w-3.5 h-3.5 text-indigo-500"></i>
+      </button>
 
       <!-- Open Dedicated Side Drawer Button -->
       <button data-open-side-drawer class="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-indigo-500/20 transition cursor-pointer">
@@ -175,21 +126,21 @@
           </span>
           <span id="dashUserIdBadge" class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-white/20 text-xs font-mono font-bold text-white backdrop-blur-sm border border-white/20">
             <i data-lucide="id-card" class="w-3.5 h-3.5"></i>
-            <span id="dashUserIdText">ID: STU</span>
+            <span id="dashUserIdText">ID: STU-2026</span>
           </span>
           <span id="dashActivePeriodBadge" class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30 text-xs font-bold">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
             <span id="dashActivePeriodText">August 2026</span>
           </span>
         </div>
-        <h2 id="dashGreetingTitle" class="text-xl sm:text-2xl font-extrabold tracking-tight">Hey, <span id="dashUserName">Student</span>! 👋 Here's your pocket money summary</h2>
+        <h2 id="dashGreetingTitle" class="text-xl sm:text-2xl font-extrabold tracking-tight">Hey, <span id="dashUserName">Rishav</span>! 👋 Here's your pocket money summary</h2>
         <p id="dashGreetingSubtitle" class="text-xs sm:text-sm text-indigo-100/90">Keep track of canteen thalis, chai, travel, and campus essentials in Indian Rupees.</p>
       </div>
 
       <div class="flex items-center space-x-2">
-        <button id="bannerSwitchAccountBtn" class="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/20 backdrop-blur-sm transition flex items-center space-x-1.5 cursor-pointer">
-          <i data-lucide="users" class="w-4 h-4"></i>
-          <span>Accounts</span>
+        <button id="bannerEditProfileBtn" type="button" class="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/20 backdrop-blur-sm transition flex items-center space-x-1.5 cursor-pointer" title="Edit Name & Student ID">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+          <span>Edit Name & ID</span>
         </button>
         <button data-open-side-drawer class="px-4 py-2.5 bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center space-x-1.5 cursor-pointer">
           <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-600"></i>
@@ -636,7 +587,7 @@
   <!-- MODALS & TOAST NOTIFICATIONS                   -->
   <!-- ============================================== -->
 
-  <!-- Student Account Access & Creation Modal -->
+  <!-- Student Account Profile & Identity Modal -->
   <div id="userAccountModal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-md hidden flex items-center justify-center p-4">
     <div class="bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl border border-slate-200 dark:border-gray-800 shadow-2xl p-6 sm:p-7 space-y-5 animate-fade-in">
       
@@ -647,123 +598,96 @@
             <i data-lucide="id-card" class="w-5 h-5"></i>
           </div>
           <div>
-            <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">Student Account Access</h3>
-            <p class="text-xs text-slate-400">Personalize your pocket money diary</p>
+            <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">Account Profile & Identity</h3>
+            <p class="text-xs text-slate-400">Set your name, ID, and personal budget</p>
           </div>
         </div>
-        <button id="closeUserAccountModalBtn" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-gray-800 transition cursor-pointer">
+        <button id="closeUserAccountModalBtn" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-gray-800 transition cursor-pointer" title="Close Profile Modal">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <!-- Auth Tab Switcher -->
-      <div class="flex p-1 bg-slate-100 dark:bg-gray-800/80 rounded-2xl gap-1">
-        <button type="button" id="tabBtnCreateAccount" class="auth-tab-btn active">
-          + Create Account
-        </button>
-        <button type="button" id="tabBtnLoginAccount" class="auth-tab-btn">
-          Switch Account
-        </button>
-      </div>
+      <!-- Account Profile Form -->
+      <form id="createAccountForm" class="space-y-4">
+        
+        <!-- Full Name -->
+        <div class="space-y-1">
+          <label for="createUserName" class="text-xs font-bold text-slate-600 dark:text-slate-300">
+            Full Name <span class="text-rose-500">*</span>
+          </label>
+          <div class="relative">
+            <i data-lucide="user" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="createUserName" required placeholder="e.g. Rishav Raj" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+          </div>
+        </div>
 
-      <!-- TAB 1: CREATE ACCOUNT FORM -->
-      <div id="tabContentCreateAccount" class="space-y-4">
-        <form id="createAccountForm" class="space-y-4">
-          
-          <!-- Full Name -->
+        <!-- Student ID / User ID -->
+        <div class="space-y-1">
+          <label for="createUserId" class="text-xs font-bold text-slate-600 dark:text-slate-300">
+            Student ID / Roll No / User ID <span class="text-rose-500">*</span>
+          </label>
+          <div class="relative">
+            <i data-lucide="badge-check" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="createUserId" required placeholder="e.g. STU-2026 or 22BCS042" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+          </div>
+          <p class="text-[10px] text-slate-400">Your identifier displayed on your diary and export reports</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- College Course / Tag -->
           <div class="space-y-1">
-            <label for="createUserName" class="text-xs font-bold text-slate-600 dark:text-slate-300">
-              Full Name <span class="text-rose-500">*</span>
-            </label>
-            <div class="relative">
-              <i data-lucide="user" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="text" id="createUserName" required placeholder="e.g. Rishav Raj" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-            </div>
+            <label for="createUserTag" class="text-xs font-bold text-slate-600 dark:text-slate-300">Course / Branch</label>
+            <input type="text" id="createUserTag" placeholder="e.g. B.Tech CSE" class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
 
-          <!-- Student ID / User ID -->
+          <!-- Monthly Pocket Money / Budget -->
           <div class="space-y-1">
-            <label for="createUserId" class="text-xs font-bold text-slate-600 dark:text-slate-300">
-              Student ID / Roll No / User ID <span class="text-rose-500">*</span>
+            <label for="createUserBudget" class="text-xs font-bold text-slate-600 dark:text-slate-300">Monthly Budget (<span class="active-currency-symbol font-bold">₹</span>)</label>
+            <input type="number" id="createUserBudget" value="12000" min="0" step="100" class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Avatar Color Selection -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-300">Profile Badge Color</label>
+          <div class="flex items-center space-x-2.5">
+            <label class="color-radio-label">
+              <input type="radio" name="accountAvatarColor" value="#6366f1" checked class="sr-only">
+              <span class="w-7 h-7 rounded-full bg-indigo-600 transition block"></span>
             </label>
-            <div class="relative">
-              <i data-lucide="badge-check" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="text" id="createUserId" required placeholder="e.g. STU-2026 or 22BCS042" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-            </div>
-            <p class="text-[10px] text-slate-400">Unique identifier for your private expense diary</p>
+            <label class="color-radio-label">
+              <input type="radio" name="accountAvatarColor" value="#9333ea" class="sr-only">
+              <span class="w-7 h-7 rounded-full bg-purple-600 transition block"></span>
+            </label>
+            <label class="color-radio-label">
+              <input type="radio" name="accountAvatarColor" value="#059669" class="sr-only">
+              <span class="w-7 h-7 rounded-full bg-emerald-600 transition block"></span>
+            </label>
+            <label class="color-radio-label">
+              <input type="radio" name="accountAvatarColor" value="#e11d48" class="sr-only">
+              <span class="w-7 h-7 rounded-full bg-rose-600 transition block"></span>
+            </label>
+            <label class="color-radio-label">
+              <input type="radio" name="accountAvatarColor" value="#d97706" class="sr-only">
+              <span class="w-7 h-7 rounded-full bg-amber-600 transition block"></span>
+            </label>
+            <label class="color-radio-label">
+              <input type="radio" name="accountAvatarColor" value="#0284c7" class="sr-only">
+              <span class="w-7 h-7 rounded-full bg-sky-600 transition block"></span>
+            </label>
           </div>
+        </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <!-- College Course / Tag -->
-            <div class="space-y-1">
-              <label for="createUserTag" class="text-xs font-bold text-slate-600 dark:text-slate-300">Course / Branch</label>
-              <input type="text" id="createUserTag" placeholder="e.g. B.Tech CSE" class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-
-            <!-- Monthly Pocket Money / Budget -->
-            <div class="space-y-1">
-              <label for="createUserBudget" class="text-xs font-bold text-slate-600 dark:text-slate-300">Monthly Budget (<span class="active-currency-symbol font-bold">₹</span>)</label>
-              <input type="number" id="createUserBudget" value="12000" min="0" step="100" class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-          </div>
-
-          <!-- Avatar Color Selection -->
-          <div class="space-y-1.5">
-            <label class="text-xs font-bold text-slate-600 dark:text-slate-300">Profile Color Theme</label>
-            <div class="flex items-center space-x-2.5">
-              <label class="color-radio-label">
-                <input type="radio" name="accountAvatarColor" value="#6366f1" checked class="sr-only">
-                <span class="w-7 h-7 rounded-full bg-indigo-600 transition block"></span>
-              </label>
-              <label class="color-radio-label">
-                <input type="radio" name="accountAvatarColor" value="#9333ea" class="sr-only">
-                <span class="w-7 h-7 rounded-full bg-purple-600 transition block"></span>
-              </label>
-              <label class="color-radio-label">
-                <input type="radio" name="accountAvatarColor" value="#059669" class="sr-only">
-                <span class="w-7 h-7 rounded-full bg-emerald-600 transition block"></span>
-              </label>
-              <label class="color-radio-label">
-                <input type="radio" name="accountAvatarColor" value="#e11d48" class="sr-only">
-                <span class="w-7 h-7 rounded-full bg-rose-600 transition block"></span>
-              </label>
-              <label class="color-radio-label">
-                <input type="radio" name="accountAvatarColor" value="#d97706" class="sr-only">
-                <span class="w-7 h-7 rounded-full bg-amber-600 transition block"></span>
-              </label>
-              <label class="color-radio-label">
-                <input type="radio" name="accountAvatarColor" value="#0284c7" class="sr-only">
-                <span class="w-7 h-7 rounded-full bg-sky-600 transition block"></span>
-              </label>
-            </div>
-          </div>
-
-          <button type="submit" class="w-full py-3 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition flex items-center justify-center space-x-2 cursor-pointer">
-            <i data-lucide="check-circle" class="w-4 h-4"></i>
-            <span>Create Account & Start Diary</span>
+        <div class="pt-2 flex items-center space-x-2">
+          <button type="button" data-close-profile-modal class="flex-1 py-3 px-4 rounded-2xl border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-gray-800 transition cursor-pointer">
+            Cancel
           </button>
-        </form>
-      </div>
-
-      <!-- TAB 2: SWITCH / LOGIN ACCOUNT -->
-      <div id="tabContentLoginAccount" class="hidden space-y-4">
-        <div class="space-y-2">
-          <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Select an existing account from this device:</p>
-          <div id="modalSavedAccountsList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-            <!-- Populated via JS -->
-          </div>
+          <button type="submit" class="flex-2 py-3 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition flex items-center justify-center space-x-2 cursor-pointer">
+            <i data-lucide="check-circle" class="w-4 h-4"></i>
+            <span>Save Profile & Name</span>
+          </button>
         </div>
-
-        <div class="pt-2 border-t border-slate-100 dark:border-gray-800 space-y-2">
-          <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Or enter Student ID to log in:</p>
-          <form id="loginByIdForm" class="flex gap-2">
-            <input type="text" id="loginUserIdInput" placeholder="Enter Student ID" required class="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition cursor-pointer">
-              Log In
-            </button>
-          </form>
-        </div>
-      </div>
+      </form>
 
     </div>
   </div>
