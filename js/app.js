@@ -114,8 +114,19 @@ function updateThemeIcons(isDark) {
  * Data Initialization
  */
 function initData() {
+  // Ensure storage is initialized cleanly on the first-ever launch (only seeds once if empty)
+  StorageService.ensureInitialized();
+
+  // Load persisted expenses and currency
   AppState.expenses = StorageService.getExpenses();
   AppState.currency = StorageService.getCurrency();
+
+  // Restore user's last selected period (Year & Month) if previously saved
+  const savedPeriod = StorageService.getSelectedPeriod();
+  if (savedPeriod && typeof savedPeriod.year === 'number' && typeof savedPeriod.month === 'number') {
+    AppState.selectedYear = savedPeriod.year;
+    AppState.selectedMonth = savedPeriod.month;
+  }
 
   // Populate Header Currency Selector
   const currencySelect = document.getElementById('headerCurrencySelect');
@@ -178,6 +189,7 @@ function initMonthPicker() {
       const [y, m] = e.target.value.split('-');
       AppState.selectedYear = parseInt(y, 10);
       AppState.selectedMonth = parseInt(m, 10);
+      StorageService.saveSelectedPeriod(AppState.selectedYear, AppState.selectedMonth);
       showToast(`Viewing ${getSelectedPeriodLabel()}`);
       renderApp();
     });
@@ -241,6 +253,7 @@ function changePeriod(direction) {
     AppState.selectedYear -= 1;
   }
   AppState.selectedMonth = newMonth;
+  StorageService.saveSelectedPeriod(AppState.selectedYear, AppState.selectedMonth);
 
   populateMonthYearSelect();
   showToast(`Viewing ${getSelectedPeriodLabel()}`);
@@ -616,6 +629,7 @@ function initAddExpenseForm() {
       const addedDate = new Date(date + 'T12:00:00');
       AppState.selectedYear = addedDate.getFullYear();
       AppState.selectedMonth = addedDate.getMonth();
+      StorageService.saveSelectedPeriod(AppState.selectedYear, AppState.selectedMonth);
       populateMonthYearSelect();
 
       showToast(`Logged "${newExpense.name}" for ${formatMoney(newExpense.amount)}!`);
@@ -824,12 +838,16 @@ function showConfirmModal({ title, message, confirmBtnText, confirmBtnClass, onC
  * Data Backup & Restore Controls
  */
 function initDataBackupControls() {
-  const exportBtn = document.getElementById('exportCSVBtn');
+  const exportCsvBtn = document.getElementById('exportCSVBtn');
+  const exportJsonBtn = document.getElementById('exportJSONBtn');
+  const importJsonBtn = document.getElementById('importJSONBtn');
+  const importFileInput = document.getElementById('importJSONFileInput');
   const reloadBtn = document.getElementById('reloadDemoDataBtn');
   const clearBtn = document.getElementById('clearAllExpensesBtn');
 
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
+  // Export CSV
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', () => {
       const csvUri = StorageService.exportToCSV();
       if (!csvUri) {
         showToast('No expenses found to export', 'error');
@@ -837,27 +855,84 @@ function initDataBackupControls() {
       }
       const link = document.createElement('a');
       link.setAttribute('href', csvUri);
-      link.setAttribute('download', `student_expenses_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `campus_spend_expenses_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToast('CSV downloaded successfully!');
+      showToast('CSV file downloaded successfully!');
     });
   }
 
+  // Export JSON Backup
+  if (exportJsonBtn) {
+    exportJsonBtn.addEventListener('click', () => {
+      const jsonUri = StorageService.exportToJSON();
+      const link = document.createElement('a');
+      link.setAttribute('href', jsonUri);
+      link.setAttribute('download', `campus_spend_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Full JSON backup downloaded successfully!');
+    });
+  }
+
+  // Trigger Import JSON file selection
+  if (importJsonBtn && importFileInput) {
+    importJsonBtn.addEventListener('click', () => {
+      importFileInput.click();
+    });
+
+    importFileInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target.result;
+          const result = StorageService.importFromJSON(content);
+          if (result.success) {
+            AppState.expenses = StorageService.getExpenses();
+            AppState.currency = StorageService.getCurrency();
+            renderApp();
+            showToast(`Successfully imported and saved ${result.count} expenses!`);
+          } else {
+            showToast(`Import failed: ${result.error || 'Invalid file'}`, 'error');
+          }
+        } catch (err) {
+          showToast(`Import error: ${err.message}`, 'error');
+        } finally {
+          importFileInput.value = '';
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // Reload Sample Data (with user confirmation)
   if (reloadBtn) {
     reloadBtn.addEventListener('click', () => {
-      AppState.expenses = StorageService.seedDemoStudentData();
-      showToast('Reloaded college multi-month sample records!');
-      renderApp();
+      showConfirmModal({
+        title: 'Reload Sample Student Data',
+        message: 'This will reset your expenses list with realistic college sample records. Do you wish to proceed?',
+        confirmBtnText: 'Reload Records',
+        confirmBtnClass: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+        onConfirm: () => {
+          AppState.expenses = StorageService.seedDemoStudentData();
+          showToast('Loaded college sample records into storage!');
+          renderApp();
+        }
+      });
     });
   }
 
+  // Delete All Spends (with user confirmation)
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       showConfirmModal({
-        title: 'Delete All Expenses',
-        message: 'Are you sure you want to delete ALL recorded expenses from browser storage? This cannot be undone.',
+        title: 'Delete All Expense Records',
+        message: 'Are you sure you want to permanently clear ALL recorded expenses from browser storage? This cannot be undone.',
         confirmBtnText: 'Delete All Records',
         confirmBtnClass: 'bg-rose-600 hover:bg-rose-700 text-white',
         onConfirm: () => {
@@ -1166,6 +1241,7 @@ function renderYearlyRecordGrid(stats) {
 
 function selectMonthFromGrid(monthIndex) {
   AppState.selectedMonth = monthIndex;
+  StorageService.saveSelectedPeriod(AppState.selectedYear, AppState.selectedMonth);
   populateMonthYearSelect();
   showToast(`Switched to ${getSelectedPeriodLabel()}`);
   renderApp();

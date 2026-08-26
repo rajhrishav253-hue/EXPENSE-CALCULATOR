@@ -1,12 +1,16 @@
 /**
  * Storage & Data Management Module for Student Personal Expense Calculator
+ * Provides robust LocalStorage persistence with in-memory fallback,
+ * ensuring user data is saved reliably and never accidentally reset or overwritten.
  */
 
 const STORAGE_KEYS = {
   EXPENSES: 'student_expenses_v2',
   BUDGET: 'student_budget_v2',
   CURRENCY: 'student_currency_v2',
-  THEME: 'student_theme_v2'
+  THEME: 'student_theme_v2',
+  INITIALIZED: 'student_expenses_initialized_v2',
+  PERIOD: 'student_selected_period_v2'
 };
 
 const CATEGORIES = [
@@ -40,31 +44,124 @@ const CURRENCIES = {
   SGD: { symbol: 'S$', name: 'Singapore Dollar (SGD)', code: 'SGD' }
 };
 
+// In-memory fallback in case browser storage is restricted or throws
+const _memoryStore = {};
+
 const StorageService = {
+  /**
+   * Safe getter for LocalStorage with in-memory fallback
+   */
+  _getItem(key) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const val = localStorage.getItem(key);
+        if (val !== null) return val;
+      }
+    } catch (e) {
+      console.warn(`LocalStorage read failed for key "${key}", falling back to memory:`, e);
+    }
+    return _memoryStore[key] !== undefined ? _memoryStore[key] : null;
+  },
+
+  /**
+   * Safe setter for LocalStorage with in-memory fallback
+   */
+  _setItem(key, value) {
+    _memoryStore[key] = value;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+        return true;
+      }
+    } catch (e) {
+      console.warn(`LocalStorage write failed for key "${key}", saved to memory only:`, e);
+    }
+    return true;
+  },
+
+  /**
+   * Safe remover for LocalStorage
+   */
+  _removeItem(key) {
+    delete _memoryStore[key];
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+        return true;
+      }
+    } catch (e) {
+      console.warn(`LocalStorage remove failed for key "${key}":`, e);
+    }
+    return true;
+  },
+
+  /**
+   * Check if the application has completed first-time setup
+   */
+  isInitialized() {
+    return this._getItem(STORAGE_KEYS.INITIALIZED) === 'true';
+  },
+
+  /**
+   * Mark application setup as completed
+   */
+  setInitialized() {
+    this._setItem(STORAGE_KEYS.INITIALIZED, 'true');
+  },
+
+  /**
+   * Ensure data is initialized on the very first run.
+   * If already initialized once, it NEVER overwrites or resets user data!
+   */
+  ensureInitialized() {
+    if (this.isInitialized()) {
+      return false; // Already initialized, keep existing user data intact
+    }
+
+    const existingExpenses = this.getExpenses();
+    if (!existingExpenses || existingExpenses.length === 0) {
+      this.seedDemoStudentData();
+    } else {
+      this.setInitialized();
+    }
+    return true;
+  },
+
+  /**
+   * Retrieve all expenses from storage
+   */
   getExpenses() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-      return data ? JSON.parse(data) : [];
+      const data = this._getItem(STORAGE_KEYS.EXPENSES);
+      if (!data) return [];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error('Error reading expenses from storage:', e);
       return [];
     }
   },
 
+  /**
+   * Save expenses array permanently to storage
+   */
   saveExpenses(expenses) {
     try {
-      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
-      return true;
+      const safeArray = Array.isArray(expenses) ? expenses : [];
+      return this._setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(safeArray));
     } catch (e) {
       console.error('Error saving expenses:', e);
       return false;
     }
   },
 
+  /**
+   * Add a single new expense and persist immediately
+   */
   addExpense(expense) {
     const expenses = this.getExpenses();
     const newExpense = {
-      id: expense.id || 'exp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      id: expense.id || 'exp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
       name: (expense.name || 'Untitled Expense').trim(),
       amount: Math.max(0, parseFloat(expense.amount) || 0),
       category: expense.category || 'Other',
@@ -75,17 +172,21 @@ const StorageService = {
     };
     expenses.unshift(newExpense);
     this.saveExpenses(expenses);
+    this.setInitialized();
     return newExpense;
   },
 
+  /**
+   * Update an existing expense by ID and persist immediately
+   */
   updateExpense(updatedExpense) {
     const expenses = this.getExpenses();
     const index = expenses.findIndex(e => e.id === updatedExpense.id);
     if (index !== -1) {
       expenses[index] = {
         ...expenses[index],
-        name: (updatedExpense.name || expenses[index].name).trim(),
-        amount: Math.max(0, parseFloat(updatedExpense.amount) || 0),
+        name: (updatedExpense.name !== undefined ? updatedExpense.name : expenses[index].name).trim(),
+        amount: updatedExpense.amount !== undefined ? Math.max(0, parseFloat(updatedExpense.amount) || 0) : expenses[index].amount,
         category: updatedExpense.category || expenses[index].category,
         date: updatedExpense.date || expenses[index].date,
         paymentMethod: updatedExpense.paymentMethod || expenses[index].paymentMethod,
@@ -98,29 +199,35 @@ const StorageService = {
     return null;
   },
 
+  /**
+   * Delete an expense by ID and persist immediately
+   */
   deleteExpense(id) {
-    let expenses = this.getExpenses();
+    const expenses = this.getExpenses();
     const initialCount = expenses.length;
-    expenses = expenses.filter(e => e.id !== id);
-    if (expenses.length !== initialCount) {
-      this.saveExpenses(expenses);
+    const remaining = expenses.filter(e => e.id !== id);
+    if (remaining.length !== initialCount) {
+      this.saveExpenses(remaining);
       return true;
     }
     return false;
   },
 
+  /**
+   * Clear all recorded expenses and persist empty array (remains empty on reloads)
+   */
   clearAllExpenses() {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.EXPENSES);
-      return true;
-    } catch (e) {
-      return false;
-    }
+    this.saveExpenses([]);
+    this.setInitialized(); // Ensure it remains permanently initialized as empty
+    return true;
   },
 
+  /**
+   * Get User Budget Configuration
+   */
   getBudget() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.BUDGET);
+      const data = this._getItem(STORAGE_KEYS.BUDGET);
       return data ? JSON.parse(data) : {
         monthlyLimit: 12000,
         alertsEnabled: true,
@@ -151,59 +258,103 @@ const StorageService = {
     }
   },
 
+  /**
+   * Save User Budget Configuration
+   */
   saveBudget(budget) {
     try {
-      localStorage.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(budget));
-      return true;
+      return this._setItem(STORAGE_KEYS.BUDGET, JSON.stringify(budget));
     } catch (e) {
       return false;
     }
   },
 
+  /**
+   * Get Saved Currency Preference
+   */
   getCurrency() {
     try {
-      const code = localStorage.getItem(STORAGE_KEYS.CURRENCY) || 'INR';
+      const code = this._getItem(STORAGE_KEYS.CURRENCY) || 'INR';
       return CURRENCIES[code] || CURRENCIES.INR;
     } catch (e) {
       return CURRENCIES.INR;
     }
   },
 
+  /**
+   * Save Currency Preference
+   */
   saveCurrency(currencyCode) {
     if (CURRENCIES[currencyCode]) {
-      localStorage.setItem(STORAGE_KEYS.CURRENCY, currencyCode);
+      this._setItem(STORAGE_KEYS.CURRENCY, currencyCode);
       return true;
     }
     return false;
   },
 
+  /**
+   * Get Theme Preference
+   */
   getTheme() {
-    return localStorage.getItem(STORAGE_KEYS.THEME) || 'light';
+    return this._getItem(STORAGE_KEYS.THEME) || 'light';
   },
 
+  /**
+   * Save Theme Preference
+   */
   saveTheme(theme) {
-    localStorage.setItem(STORAGE_KEYS.THEME, theme);
+    this._setItem(STORAGE_KEYS.THEME, theme);
   },
 
+  /**
+   * Get Last Selected Period (Year & Month)
+   */
+  getSelectedPeriod() {
+    try {
+      const data = this._getItem(STORAGE_KEYS.PERIOD);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (typeof parsed.year === 'number' && typeof parsed.month === 'number') {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  },
+
+  /**
+   * Save Last Selected Period
+   */
+  saveSelectedPeriod(year, month) {
+    try {
+      this._setItem(STORAGE_KEYS.PERIOD, JSON.stringify({ year, month }));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /**
+   * Seed curated sample student records with stable dates
+   */
   seedDemoStudentData() {
     const today = new Date();
     const y = today.getFullYear();
-    const m = today.getMonth(); // 0-indexed (7 for August)
+    const m = today.getMonth(); // 0-indexed
     const day = today.getDate();
 
-    // Helper to format specific date
     const formatDate = (year, monthIndex, dayNum) => {
       const targetM = String(monthIndex + 1).padStart(2, '0');
-      const targetD = String(dayNum).padStart(2, '0');
+      const targetD = String(Math.max(1, Math.min(28, dayNum))).padStart(2, '0');
       return `${year}-${targetM}-${targetD}`;
     };
 
     const sampleExpenses = [
-      // ----------------------------------------------------
-      // AUGUST 2026 (Current Month)
-      // ----------------------------------------------------
+      // Current Month
       {
-        id: 'exp_aug_1',
+        id: 'exp_cur_1',
         name: 'Sharma Ji Canteen - Rajma Chawal Thali',
         amount: 120.00,
         category: 'Food',
@@ -213,7 +364,7 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_2',
+        id: 'exp_cur_2',
         name: 'Tapri Chai & Samosa after Lab',
         amount: 45.00,
         category: 'Food',
@@ -223,17 +374,17 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_3',
+        id: 'exp_cur_3',
         name: 'Auto share to Metro Station',
         amount: 50.00,
         category: 'Travel',
         date: formatDate(y, m, Math.max(1, day - 1)),
         paymentMethod: 'UPI / Online',
-        description: '4-way shared e-rickshaw from hostel gate to yellow line metro',
+        description: '4-way shared e-rickshaw from hostel gate to metro',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_4',
+        id: 'exp_cur_4',
         name: 'Monthly Metro Smart Card Recharge',
         amount: 600.00,
         category: 'Travel',
@@ -243,27 +394,27 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_5',
+        id: 'exp_cur_5',
         name: 'Engineering Books & Lab Manual Xerox',
         amount: 950.00,
         category: 'Education',
         date: formatDate(y, m, 8),
         paymentMethod: 'Debit Card',
-        description: 'Semester 5 reference book and spiral binding for lab reports',
+        description: 'Semester reference books and spiral binding for lab reports',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_6',
+        id: 'exp_cur_6',
         name: 'Room 304 WiFi Bill (4-way split)',
         amount: 499.00,
         category: 'Bills',
         date: formatDate(y, m, 10),
         paymentMethod: 'UPI / Online',
-        description: 'My quarter share of 200Mbps unlimited fiber router connection',
+        description: 'My quarter share of unlimited fiber router connection',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_7',
+        id: 'exp_cur_7',
         name: 'Hostel Ration - Maggi, Milk & Peanut Butter',
         amount: 1450.00,
         category: 'Food',
@@ -273,7 +424,7 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_8',
+        id: 'exp_cur_8',
         name: 'Movie Night @ PVR with Roommates',
         amount: 350.00,
         category: 'Entertainment',
@@ -283,7 +434,7 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_9',
+        id: 'exp_cur_9',
         name: 'College Gym Monthly Fee',
         amount: 500.00,
         category: 'Health',
@@ -293,7 +444,7 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_10',
+        id: 'exp_cur_10',
         name: 'Department Fest Hoodie',
         amount: 1299.00,
         category: 'Shopping',
@@ -303,7 +454,7 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_11',
+        id: 'exp_cur_11',
         name: 'Pharmacy - Cold Strips & Paracetamol',
         amount: 220.00,
         category: 'Health',
@@ -313,7 +464,7 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_aug_12',
+        id: 'exp_cur_12',
         name: 'Hostel Washing Machine Card Recharge',
         amount: 180.00,
         category: 'Other',
@@ -323,173 +474,167 @@ const StorageService = {
         createdAt: new Date().toISOString()
       },
 
-      // ----------------------------------------------------
-      // JULY 2026
-      // ----------------------------------------------------
+      // Past Month 1 (July)
       {
-        id: 'exp_jul_1',
+        id: 'exp_prev1_1',
         name: 'Semester College Registration & Exam Fee',
         amount: 2500.00,
         category: 'Education',
-        date: formatDate(y, 6, 4), // July 4
+        date: formatDate(y, Math.max(0, m - 1), 4),
         paymentMethod: 'Debit Card',
         description: 'Online semester registration portal fee receipt',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jul_2',
+        id: 'exp_prev1_2',
         name: 'Hostel Mess Advance Deposit',
         amount: 3800.00,
         category: 'Food',
-        date: formatDate(y, 6, 2), // July 2
+        date: formatDate(y, Math.max(0, m - 1), 2),
         paymentMethod: 'UPI / Online',
         description: 'Monthly unlimited breakfast, lunch, and dinner meal pass',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jul_3',
+        id: 'exp_prev1_3',
         name: 'Monsoon Big Umbrella & Raincoat',
         amount: 450.00,
         category: 'Shopping',
-        date: formatDate(y, 6, 7), // July 7
+        date: formatDate(y, Math.max(0, m - 1), 7),
         paymentMethod: 'Cash',
         description: 'Windproof umbrella for walking between academic blocks',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jul_4',
+        id: 'exp_prev1_4',
         name: 'July Metro Pass Recharge',
         amount: 600.00,
         category: 'Travel',
-        date: formatDate(y, 6, 1), // July 1
+        date: formatDate(y, Math.max(0, m - 1), 1),
         paymentMethod: 'UPI / Online',
         description: 'Monthly student transit card reload',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jul_5',
+        id: 'exp_prev1_5',
         name: 'Late Night Dominos Pizza Split',
         amount: 380.00,
         category: 'Food',
-        date: formatDate(y, 6, 16), // July 16
+        date: formatDate(y, Math.max(0, m - 1), 16),
         paymentMethod: 'UPI / Online',
         description: 'Celebrated hackathon submission with wing mates',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jul_6',
+        id: 'exp_prev1_6',
         name: 'Notebooks, Pens & Stationery Pack',
         amount: 320.00,
         category: 'Education',
-        date: formatDate(y, 6, 12), // July 12
+        date: formatDate(y, Math.max(0, m - 1), 12),
         paymentMethod: 'UPI / Online',
         description: '5 subject registers, sticky notes, and gel pens for new semester',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jul_7',
-        name: 'Hostel WiFi Split (July)',
+        id: 'exp_prev1_7',
+        name: 'Hostel WiFi Split',
         amount: 499.00,
         category: 'Bills',
-        date: formatDate(y, 6, 10), // July 10
+        date: formatDate(y, Math.max(0, m - 1), 10),
         paymentMethod: 'UPI / Online',
         description: 'Monthly optical fiber bill contribution',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jul_8',
+        id: 'exp_prev1_8',
         name: 'Haircut & Grooming @ Campus Salon',
         amount: 150.00,
         category: 'Other',
-        date: formatDate(y, 6, 24), // July 24
+        date: formatDate(y, Math.max(0, m - 1), 24),
         paymentMethod: 'UPI / Online',
         description: 'Haircut and head massage before semester interview',
         createdAt: new Date().toISOString()
       },
 
-      // ----------------------------------------------------
-      // JUNE 2026
-      // ----------------------------------------------------
+      // Past Month 2 (June)
       {
-        id: 'exp_jun_1',
+        id: 'exp_prev2_1',
         name: 'Summer Internship Travel Train & Cab',
         amount: 1200.00,
         category: 'Travel',
-        date: formatDate(y, 5, 2), // June 2
+        date: formatDate(y, Math.max(0, m - 2), 2),
         paymentMethod: 'UPI / Online',
         description: 'Daily express bus and metro travel for tech internship',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jun_2',
+        id: 'exp_prev2_2',
         name: 'Laptop 65W Fast Type-C Charger',
         amount: 1150.00,
         category: 'Education',
-        date: formatDate(y, 5, 14), // June 14
+        date: formatDate(y, Math.max(0, m - 2), 14),
         paymentMethod: 'Debit Card',
         description: 'Replaced frayed original laptop power brick',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jun_3',
+        id: 'exp_prev2_3',
         name: 'Street Momos & Cold Coffee with Gang',
         amount: 180.00,
         category: 'Food',
-        date: formatDate(y, 5, 18), // June 18
+        date: formatDate(y, Math.max(0, m - 2), 18),
         paymentMethod: 'UPI / Online',
         description: 'Evening treat after internship project completion',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jun_4',
+        id: 'exp_prev2_4',
         name: 'Quarterly Mobile Recharge (84 Days)',
         amount: 719.00,
         category: 'Bills',
-        date: formatDate(y, 5, 8), // June 8
+        date: formatDate(y, Math.max(0, m - 2), 8),
         paymentMethod: 'UPI / Online',
         description: 'Jio 2GB/day unlimited 5G student data plan',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_jun_5',
+        id: 'exp_prev2_5',
         name: 'Cloud Developer Certification Voucher',
         amount: 899.00,
         category: 'Education',
-        date: formatDate(y, 5, 22), // June 22
+        date: formatDate(y, Math.max(0, m - 2), 22),
         paymentMethod: 'Credit Card',
         description: 'Student discount exam voucher for AWS cloud badge',
         createdAt: new Date().toISOString()
       },
 
-      // ----------------------------------------------------
-      // MAY 2026
-      // ----------------------------------------------------
+      // Past Month 3 (May)
       {
-        id: 'exp_may_1',
+        id: 'exp_prev3_1',
         name: 'End-Semester Exam Photocopies',
         amount: 280.00,
         category: 'Education',
-        date: formatDate(y, 4, 10), // May 10
+        date: formatDate(y, Math.max(0, m - 3), 10),
         paymentMethod: 'Cash',
         description: 'Previous 5 years question papers & solved answer bank',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_may_2',
+        id: 'exp_prev3_2',
         name: 'Farewell Dinner Buffet with Seniors',
         amount: 650.00,
         category: 'Food',
-        date: formatDate(y, 4, 25), // May 25
+        date: formatDate(y, Math.max(0, m - 3), 25),
         paymentMethod: 'UPI / Online',
         description: 'Department annual farewell party banquet share',
         createdAt: new Date().toISOString()
       },
       {
-        id: 'exp_may_3',
+        id: 'exp_prev3_3',
         name: 'Train Ticket Home for Summer Vacation',
         amount: 850.00,
         category: 'Travel',
-        date: formatDate(y, 4, 28), // May 28
+        date: formatDate(y, Math.max(0, m - 3), 28),
         paymentMethod: 'UPI / Online',
         description: 'IRCTC 3rd AC train ticket for summer holidays',
         createdAt: new Date().toISOString()
@@ -510,10 +655,14 @@ const StorageService = {
         Health: 600
       }
     });
+    this.setInitialized();
 
     return sampleExpenses;
   },
 
+  /**
+   * Export expenses as a CSV string URI
+   */
   exportToCSV() {
     const expenses = this.getExpenses();
     if (!expenses.length) return null;
@@ -533,6 +682,9 @@ const StorageService = {
     return encodeURI(csvContent);
   },
 
+  /**
+   * Export full backup payload as JSON URI
+   */
   exportToJSON() {
     const payload = {
       app: 'StudentPersonalExpenseCalculator',
@@ -545,6 +697,9 @@ const StorageService = {
     return 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
   },
 
+  /**
+   * Import data from JSON string and save permanently
+   */
   importFromJSON(jsonString) {
     try {
       const data = JSON.parse(jsonString);
@@ -552,9 +707,10 @@ const StorageService = {
         this.saveExpenses(data.expenses);
         if (data.budget) this.saveBudget(data.budget);
         if (data.currency && CURRENCIES[data.currency]) this.saveCurrency(data.currency);
+        this.setInitialized();
         return { success: true, count: data.expenses.length };
       }
-      return { success: false, error: 'Invalid file: missing expenses array' };
+      return { success: false, error: 'Invalid file format: missing expenses array' };
     } catch (e) {
       return { success: false, error: e.message };
     }
