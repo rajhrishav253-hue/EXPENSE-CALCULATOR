@@ -229,8 +229,10 @@ function initUserAccounts() {
     });
   }
 
+  let editingAccountId = null;
+
   // Open Modal Helper
-  const openAccountModal = (defaultTab = 'create') => {
+  const openAccountModal = (defaultTab = 'create', editMode = false) => {
     if (modal) {
       modal.classList.remove('hidden');
       switchTab(defaultTab);
@@ -243,6 +245,30 @@ function initUserAccounts() {
         }
       }
       if (dropdownMenu) dropdownMenu.classList.add('hidden');
+
+      const modalTitle = modal.querySelector('h3');
+      const submitBtn = createForm ? createForm.querySelector('button[type="submit"]') : null;
+
+      if (editMode && currentUser) {
+        editingAccountId = currentUser.id;
+        if (modalTitle) modalTitle.textContent = 'Edit Profile & Name';
+        if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i> <span>Save Profile Changes</span>';
+        
+        document.getElementById('createUserName').value = currentUser.name || '';
+        document.getElementById('createUserId').value = currentUser.id || '';
+        document.getElementById('createUserTag').value = currentUser.tag || '';
+        document.getElementById('createUserBudget').value = currentUser.budget || 12000;
+        const colorRadio = document.querySelector(`input[name="accountAvatarColor"][value="${currentUser.avatarColor || '#6366f1'}"]`);
+        if (colorRadio) colorRadio.checked = true;
+      } else {
+        editingAccountId = null;
+        if (modalTitle) modalTitle.textContent = 'Student Account Access';
+        if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i> <span>Create Account & Start Diary</span>';
+        if (createForm) createForm.reset();
+        const budgetInput = document.getElementById('createUserBudget');
+        if (budgetInput) budgetInput.value = 12000;
+      }
+
       if (window.lucide) lucide.createIcons();
     }
   };
@@ -255,8 +281,10 @@ function initUserAccounts() {
     });
   }
 
-  if (dropdownCreateBtn) dropdownCreateBtn.addEventListener('click', () => openAccountModal('create'));
-  if (bannerSwitchBtn) bannerSwitchBtn.addEventListener('click', () => openAccountModal('login'));
+  const dropdownEditBtn = document.getElementById('dropdownEditProfileBtn');
+  if (dropdownEditBtn) dropdownEditBtn.addEventListener('click', () => openAccountModal('create', true));
+  if (dropdownCreateBtn) dropdownCreateBtn.addEventListener('click', () => openAccountModal('create', false));
+  if (bannerSwitchBtn) bannerSwitchBtn.addEventListener('click', () => openAccountModal('login', false));
 
   if (dropdownLogoutBtn) {
     dropdownLogoutBtn.addEventListener('click', () => {
@@ -266,13 +294,13 @@ function initUserAccounts() {
         confirmBtnText: 'Switch Account',
         confirmBtnClass: 'bg-indigo-600 hover:bg-indigo-700 text-white',
         onConfirm: () => {
-          openAccountModal('login');
+          openAccountModal('login', false);
         }
       });
     });
   }
 
-  // Handle Create Account Form
+  // Handle Create / Edit Account Form
   if (createForm) {
     createForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -283,23 +311,42 @@ function initUserAccounts() {
       const selectedColorRadio = document.querySelector('input[name="accountAvatarColor"]:checked');
       const avatarColor = selectedColorRadio ? selectedColorRadio.value : '#6366f1';
 
-      const result = StorageService.createAccount({
-        name,
-        id,
-        tag,
-        budget,
-        avatarColor
-      });
+      if (editingAccountId) {
+        const result = StorageService.updateAccount(editingAccountId, {
+          name,
+          id,
+          tag,
+          budget,
+          avatarColor
+        });
 
-      if (result.success) {
-        if (modal) modal.classList.add('hidden');
-        createForm.reset();
-        AppState.expenses = StorageService.getExpenses();
-        AppState.currency = StorageService.getCurrency();
-        showToast(`Account created for ${result.user.name} (ID: ${result.user.id})!`);
-        renderApp();
+        if (result.success) {
+          if (modal) modal.classList.add('hidden');
+          editingAccountId = null;
+          showToast(`Profile updated for ${result.user.name}!`);
+          renderApp();
+        } else {
+          showToast(result.error || 'Failed to update profile', 'error');
+        }
       } else {
-        showToast(result.error || 'Failed to create account', 'error');
+        const result = StorageService.createAccount({
+          name,
+          id,
+          tag,
+          budget,
+          avatarColor
+        });
+
+        if (result.success) {
+          if (modal) modal.classList.add('hidden');
+          createForm.reset();
+          AppState.expenses = StorageService.getExpenses();
+          AppState.currency = StorageService.getCurrency();
+          showToast(`Account created for ${result.user.name} (ID: ${result.user.id})!`);
+          renderApp();
+        } else {
+          showToast(result.error || 'Failed to create account', 'error');
+        }
       }
     });
   }

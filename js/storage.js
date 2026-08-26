@@ -226,6 +226,75 @@ const StorageService = {
   },
 
   /**
+   * Update an existing user account's Name, ID, Tag, Budget, or Avatar
+   */
+  updateAccount(originalId, { name, id, tag, budget, avatarColor }) {
+    const trimmedName = (name || '').trim();
+    const trimmedId = (id || '').trim();
+
+    if (!trimmedName) {
+      return { success: false, error: 'Please enter your Full Name' };
+    }
+    if (!trimmedId) {
+      return { success: false, error: 'Please enter a Student ID / User ID' };
+    }
+
+    const accounts = this.getAccounts();
+    const idx = accounts.findIndex(a => a.id.toLowerCase() === originalId.toLowerCase());
+    if (idx === -1) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    // If changing ID, check for collision
+    if (trimmedId.toLowerCase() !== originalId.toLowerCase()) {
+      const exists = accounts.some(a => a.id.toLowerCase() === trimmedId.toLowerCase());
+      if (exists) {
+        return { success: false, error: `Account with ID "${trimmedId}" already exists.` };
+      }
+
+      // Migrate storage keys
+      const oldExpenseKey = this._getExpenseKey(originalId);
+      const newExpenseKey = this._getExpenseKey(trimmedId);
+      const expenses = this._getItem(oldExpenseKey);
+      if (expenses) {
+        this._setItem(newExpenseKey, expenses);
+        this._removeItem(oldExpenseKey);
+      }
+
+      const oldBudgetKey = this._getBudgetKey(originalId);
+      const newBudgetKey = this._getBudgetKey(trimmedId);
+      const bData = this._getItem(oldBudgetKey);
+      if (bData) {
+        this._setItem(newBudgetKey, bData);
+        this._removeItem(oldBudgetKey);
+      }
+
+      const oldCurrKey = this._getCurrencyKey(originalId);
+      const newCurrKey = this._getCurrencyKey(trimmedId);
+      const cData = this._getItem(oldCurrKey);
+      if (cData) {
+        this._setItem(newCurrKey, cData);
+        this._removeItem(oldCurrKey);
+      }
+    }
+
+    accounts[idx] = {
+      ...accounts[idx],
+      id: trimmedId,
+      name: trimmedName,
+      tag: (tag || accounts[idx].tag || 'College Student').trim(),
+      budget: budget !== undefined && !isNaN(budget) ? Math.max(0, parseFloat(budget)) : accounts[idx].budget,
+      avatarColor: avatarColor || accounts[idx].avatarColor || '#6366f1',
+      updatedAt: new Date().toISOString()
+    };
+
+    this.saveAccounts(accounts);
+    this.setCurrentUserId(trimmedId);
+
+    return { success: true, user: accounts[idx] };
+  },
+
+  /**
    * Log into an existing account by ID
    */
   loginAccount(id) {
