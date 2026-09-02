@@ -1,6 +1,7 @@
 /**
  * Storage & Data Management Module for Student Personal Expense Calculator
- * Direct, Reliable LocalStorage Persistence with Individual Account Profile Management
+ * Triple-Layer Persistence: LocalStorage + IndexedDB + MongoDB Atlas Cloud
+ * Features: Automatic Self-Healing, Cloud Sync, Offline Fallback, and Snapshots
  */
 
 const STORAGE_KEYS = {
@@ -9,7 +10,9 @@ const STORAGE_KEYS = {
   BUDGET: 'campusspend_user_budget_v1',
   CURRENCY: 'campusspend_user_currency_v1',
   THEME: 'campusspend_user_theme_v1',
-  PERIOD: 'campusspend_selected_period_v1'
+  PERIOD: 'campusspend_selected_period_v1',
+  SNAPSHOT_BACKUP: 'campusspend_snapshot_backup_v1',
+  STORAGE_HEALTH: 'campusspend_storage_health_v1'
 };
 
 const CATEGORIES = [
@@ -24,10 +27,10 @@ const CATEGORIES = [
 ];
 
 const PAYMENT_METHODS = [
+  'UPI / Online',
   'Cash',
   'Debit Card',
   'Credit Card',
-  'UPI / Online',
   'Student Wallet',
   'Other'
 ];
@@ -43,10 +46,180 @@ const CURRENCIES = {
   SGD: { symbol: 'S$', name: 'Singapore Dollar (SGD)', code: 'SGD' }
 };
 
-// In-memory fallback
+// In-memory store fallback
 const _memoryStore = {};
 
+/* ==========================================================================
+   INDEXEDDB PERMANENT STORAGE ENGINE (CampusSpendDB)
+   ========================================================================== */
+const DB_NAME = 'CampusSpendPermanentDB';
+const DB_VERSION = 1;
+const DB_STORE = 'app_key_value';
+
+let _idbInstance = null;
+let _isPersisted = false;
+
+function openIndexedDB() {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      resolve(null);
+      return;
+    }
+    if (_idbInstance) {
+      resolve(_idbInstance);
+      return;
+    }
+    try {
+      const req = window.indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) {
+          db.createObjectStore(DB_STORE, { keyPath: 'key' });
+        }
+      };
+      req.onsuccess = (e) => {
+        _idbInstance = e.target.result;
+        resolve(_idbInstance);
+      };
+      req.onerror = (e) => {
+        console.warn('IndexedDB open error:', e);
+        resolve(null);
+      };
+    } catch (err) {
+      console.warn('IndexedDB initialization failed:', err);
+      resolve(null);
+    }
+  });
+}
+
+function idbSet(key, value) {
+  return openIndexedDB().then((db) => {
+    if (!db) return false;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        const store = tx.objectStore(DB_STORE);
+        store.put({ key, value, updatedAt: Date.now() });
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      } catch (err) {
+        resolve(false);
+      }
+    });
+  });
+}
+
+function idbGet(key) {
+  return openIndexedDB().then((db) => {
+    if (!db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const store = tx.objectStore(DB_STORE);
+        const req = store.get(key);
+        req.onsuccess = () => {
+          resolve(req.result ? req.result.value : null);
+        };
+        req.onerror = () => resolve(null);
+      } catch (err) {
+        resolve(null);
+      }
+    });
+  });
+}
+
+function idbGetAll() {
+  return openIndexedDB().then((db) => {
+    if (!db) return [];
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const store = tx.objectStore(DB_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          resolve(req.result || []);
+        };
+        req.onerror = () => resolve([]);
+      } catch (err) {
+        resolve([]);
+      }
+    });
+  });
+}
+
 const StorageService = {
+  _isInitialized: false,
+
+  /**
+   * Initialize Storage Service:
+   * 1. Request persistent storage from browser (prevents auto-eviction).
+   * 2. Synchronize LocalStorage and IndexedDB.
+   * 3. Auto-recover if one layer was cleared.
+   */
+  async init() {
+    if (this._isInitialized) return;
+    this._isInitialized = true;
+
+    // 1. Request Browser Storage Persistence (StorageManager API)
+    if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+      try {
+        _isPersisted = await navigator.storage.persist();
+        if (_isPersisted) {
+          console.info('CampusSpend: Browser storage persistence granted. Eviction protection active.');
+        }
+      } catch (e) {
+        console.warn('Storage persist request warning:', e);
+      }
+    }
+
+    // 2. Perform Self-Healing Sync between LocalStorage and IndexedDB
+    await this.selfHealingSync();
+  },
+
+  /**
+   * Checks if browser storage is permanent
+   */
+  async isPermanentStorageActive() {
+    if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persisted) {
+      try {
+        return await navigator.storage.persisted();
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  },
+
+  /**
+   * Synchronizes LocalStorage and IndexedDB to ensure zero data loss.
+   * If LocalStorage was wiped by browser cache clean, it recovers from IndexedDB.
+   * If IndexedDB is fresh, it hydrates from LocalStorage.
+   */
+  async selfHealingSync() {
+    try {
+      const keysToSync = Object.values(STORAGE_KEYS);
+
+      for (const key of keysToSync) {
+        const lsVal = this._getItem(key);
+        const idbVal = await idbGet(key);
+
+        if (lsVal && !idbVal) {
+          // Sync from LocalStorage to IndexedDB
+          await idbSet(key, lsVal);
+        } else if (!lsVal && idbVal) {
+          // Auto-Recover from IndexedDB back into LocalStorage
+          console.info(`CampusSpend: Recovered lost key "${key}" from IndexedDB!`);
+          this._setItem(key, idbVal, false); // Don't re-trigger async loop
+        }
+      }
+
+      // Also maintain a safety snapshot
+      this.createSnapshotBackup();
+    } catch (err) {
+      console.warn('Self-healing sync exception:', err);
+    }
+  },
+
   _getItem(key) {
     try {
       if (typeof localStorage !== 'undefined') {
@@ -59,15 +232,19 @@ const StorageService = {
     return _memoryStore[key] !== undefined ? _memoryStore[key] : null;
   },
 
-  _setItem(key, value) {
+  _setItem(key, value, syncToIDB = true) {
     _memoryStore[key] = value;
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(key, value);
-        return true;
       }
     } catch (e) {
       console.warn(`LocalStorage write failed for "${key}":`, e);
+    }
+
+    // Dual-Layer: Mirror write to IndexedDB asynchronously
+    if (syncToIDB) {
+      idbSet(key, value).catch(() => {});
     }
     return true;
   },
@@ -77,12 +254,53 @@ const StorageService = {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(key);
-        return true;
       }
     } catch (e) {
       console.warn(`LocalStorage remove failed for "${key}":`, e);
     }
+    // Also remove from IndexedDB
+    idbSet(key, null).catch(() => {});
     return true;
+  },
+
+  /**
+   * Internal Safety Snapshot Backup
+   */
+  createSnapshotBackup() {
+    try {
+      const profile = this.getUserProfile();
+      const expenses = this.getExpenses();
+      const budget = this.getBudget();
+      const currency = this.getCurrency();
+
+      if (expenses.length > 0) {
+        const snapshot = {
+          timestamp: new Date().toISOString(),
+          count: expenses.length,
+          profile,
+          budget,
+          currency: currency.code,
+          expenses
+        };
+        const str = JSON.stringify(snapshot);
+        this._setItem(STORAGE_KEYS.SNAPSHOT_BACKUP, str);
+      }
+    } catch (e) {
+      // ignore
+    }
+  },
+
+  /**
+   * Get Snapshot Backup if needed for emergency restore
+   */
+  getSnapshotBackup() {
+    try {
+      const data = this._getItem(STORAGE_KEYS.SNAPSHOT_BACKUP);
+      if (data) return JSON.parse(data);
+    } catch (e) {
+      return null;
+    }
+    return null;
   },
 
   /* ==========================================================================
@@ -140,7 +358,7 @@ const StorageService = {
   },
 
   /* ==========================================================================
-     EXPENSES MANAGEMENT (Clean 00 slate by default)
+     EXPENSES MANAGEMENT (Permanent Storage with Dual-Layer IDB + LS)
      ========================================================================== */
 
   /**
@@ -159,12 +377,14 @@ const StorageService = {
   },
 
   /**
-   * Save all expenses permanently
+   * Save all expenses permanently (saves to LocalStorage + IndexedDB + Snapshot)
    */
   saveExpenses(expenses) {
     try {
       const safe = Array.isArray(expenses) ? expenses : [];
-      return this._setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(safe));
+      const res = this._setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(safe));
+      this.createSnapshotBackup();
+      return res;
     } catch (e) {
       console.error('Error saving expenses:', e);
       return false;
@@ -347,7 +567,7 @@ const StorageService = {
   },
 
   /* ==========================================================================
-     OPTIONAL SAMPLE DATA & EXPORT/IMPORT
+     SAMPLE DATA & EXPORT/IMPORT
      ========================================================================== */
 
   /**
@@ -456,7 +676,7 @@ const StorageService = {
     const profile = this.getUserProfile();
     const payload = {
       app: 'CampusSpend',
-      version: '3.1',
+      version: '3.2-permanent',
       exportedAt: new Date().toISOString(),
       user: profile,
       currency: this.getCurrency().code,
@@ -487,3 +707,494 @@ const StorageService = {
     }
   }
 };
+
+/* ==========================================================================
+   CLOUD SYNC MODULE — MongoDB Atlas via Express Backend
+   Non-blocking cloud persistence with offline fallback.
+   ========================================================================== */
+
+const CLOUD_API_BASE = 'http://localhost:3001/api';
+
+const CloudSync = {
+  _status: 'offline',   // 'connected', 'syncing', 'offline', 'error'
+  _lastSync: null,
+  _isSyncing: false,
+  _serverAvailable: false,
+
+  /**
+   * Get current cloud status
+   */
+  getStatus() {
+    return this._status;
+  },
+
+  /**
+   * Get last sync timestamp
+   */
+  getLastSyncTime() {
+    return this._lastSync;
+  },
+
+  /**
+   * Set status and update UI
+   */
+  _setStatus(status) {
+    this._status = status;
+    this._updateUI();
+  },
+
+  /**
+   * Check if the backend server is reachable
+   */
+  async checkHealth() {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      const res = await fetch(`${CLOUD_API_BASE}/health`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        this._serverAvailable = data.status === 'ok' && data.database === 'connected';
+        this._setStatus(this._serverAvailable ? 'connected' : 'error');
+        return this._serverAvailable;
+      }
+      this._serverAvailable = false;
+      this._setStatus('error');
+      return false;
+    } catch (err) {
+      this._serverAvailable = false;
+      this._setStatus('offline');
+      return false;
+    }
+  },
+
+  /**
+   * Initialize cloud sync — check server health, then pull cloud data
+   */
+  async init() {
+    const isAvailable = await this.checkHealth();
+    if (isAvailable) {
+      await this.syncFromCloud();
+    }
+    this._initUIControls();
+  },
+
+  /**
+   * Full sync: push local data to cloud, then pull merged result
+   */
+  async fullSync() {
+    if (this._isSyncing) return;
+    this._isSyncing = true;
+    this._setStatus('syncing');
+
+    try {
+      const isAvailable = await this.checkHealth();
+      if (!isAvailable) {
+        this._isSyncing = false;
+        return;
+      }
+
+      // Collect all local data
+      const localExpenses = StorageService.getExpenses();
+      const localProfile = StorageService.getUserProfile();
+      const localBudget = StorageService.getBudget();
+      const localCurrency = StorageService.getCurrency();
+
+      const res = await fetch(`${CLOUD_API_BASE}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expenses: localExpenses,
+          profile: localProfile,
+          budget: localBudget,
+          currency: localCurrency.code
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          // Update local storage with cloud-merged data
+          if (data.expenses && Array.isArray(data.expenses)) {
+            StorageService._setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
+          }
+          if (data.userData) {
+            if (data.userData.profile) {
+              StorageService._setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data.userData.profile));
+            }
+            if (data.userData.budget) {
+              StorageService._setItem(STORAGE_KEYS.BUDGET, JSON.stringify(data.userData.budget));
+            }
+            if (data.userData.currency && CURRENCIES[data.userData.currency]) {
+              StorageService._setItem(STORAGE_KEYS.CURRENCY, data.userData.currency);
+            }
+          }
+
+          this._lastSync = new Date();
+          this._setStatus('connected');
+
+          console.info('☁️ Cloud sync complete:', data.stats);
+        }
+      } else {
+        this._setStatus('error');
+      }
+    } catch (err) {
+      console.warn('Cloud full sync failed:', err);
+      this._setStatus('offline');
+    }
+
+    this._isSyncing = false;
+  },
+
+  /**
+   * Pull data from cloud (on startup)
+   */
+  async syncFromCloud() {
+    if (!this._serverAvailable) return;
+    this._setStatus('syncing');
+
+    try {
+      // Fetch cloud expenses
+      const expRes = await fetch(`${CLOUD_API_BASE}/expenses`);
+      if (expRes.ok) {
+        const expData = await expRes.json();
+        if (expData.success && Array.isArray(expData.expenses) && expData.expenses.length > 0) {
+          // Cloud has data — use it (cloud is source of truth)
+          StorageService._setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expData.expenses));
+          console.info(`☁️ Pulled ${expData.expenses.length} expenses from cloud.`);
+        } else {
+          // Cloud is empty — push local data up
+          const localExpenses = StorageService.getExpenses();
+          if (localExpenses.length > 0) {
+            await this._pushAllExpenses(localExpenses);
+            console.info(`☁️ Pushed ${localExpenses.length} local expenses to cloud.`);
+          }
+        }
+      }
+
+      // Fetch cloud user data
+      const userRes = await fetch(`${CLOUD_API_BASE}/userdata`);
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        if (userData.success && userData.data) {
+          if (userData.data.profile && !userData.data.profile.isDefault) {
+            StorageService._setItem(STORAGE_KEYS.PROFILE, JSON.stringify(userData.data.profile));
+          }
+          if (userData.data.budget) {
+            StorageService._setItem(STORAGE_KEYS.BUDGET, JSON.stringify(userData.data.budget));
+          }
+          if (userData.data.currency && CURRENCIES[userData.data.currency]) {
+            StorageService._setItem(STORAGE_KEYS.CURRENCY, userData.data.currency);
+          }
+        }
+      }
+
+      this._lastSync = new Date();
+      this._setStatus('connected');
+    } catch (err) {
+      console.warn('Cloud pull failed:', err);
+      this._setStatus('offline');
+    }
+  },
+
+  /**
+   * Push a single expense to cloud (called after addExpense)
+   */
+  async pushExpense(expense) {
+    if (!this._serverAvailable) return;
+    try {
+      await fetch(`${CLOUD_API_BASE}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+    } catch (err) {
+      console.warn('Cloud push expense failed:', err);
+    }
+  },
+
+  /**
+   * Update an expense in cloud
+   */
+  async updateCloudExpense(expense) {
+    if (!this._serverAvailable) return;
+    try {
+      await fetch(`${CLOUD_API_BASE}/expenses/${expense.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+    } catch (err) {
+      console.warn('Cloud update expense failed:', err);
+    }
+  },
+
+  /**
+   * Delete an expense from cloud
+   */
+  async deleteCloudExpense(id) {
+    if (!this._serverAvailable) return;
+    try {
+      await fetch(`${CLOUD_API_BASE}/expenses/${id}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn('Cloud delete expense failed:', err);
+    }
+  },
+
+  /**
+   * Delete all expenses from cloud
+   */
+  async clearCloudExpenses() {
+    if (!this._serverAvailable) return;
+    try {
+      await fetch(`${CLOUD_API_BASE}/expenses`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn('Cloud clear expenses failed:', err);
+    }
+  },
+
+  /**
+   * Push user data (profile, budget, currency) to cloud
+   */
+  async pushUserData() {
+    if (!this._serverAvailable) return;
+    try {
+      const profile = StorageService.getUserProfile();
+      const budget = StorageService.getBudget();
+      const currency = StorageService.getCurrency();
+
+      await fetch(`${CLOUD_API_BASE}/userdata`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile,
+          budget,
+          currency: currency.code
+        })
+      });
+    } catch (err) {
+      console.warn('Cloud push user data failed:', err);
+    }
+  },
+
+  /**
+   * Push all expenses to cloud (bulk upsert)
+   */
+  async _pushAllExpenses(expenses) {
+    for (const exp of expenses) {
+      try {
+        await fetch(`${CLOUD_API_BASE}/expenses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(exp)
+        });
+      } catch (err) {
+        // Continue with next
+      }
+    }
+  },
+
+  /**
+   * Update the cloud sync UI elements
+   */
+  _updateUI() {
+    // Header dot
+    const headerDot = document.getElementById('cloudSyncDot');
+    const headerBtn = document.getElementById('cloudSyncBtn');
+    // Card elements
+    const cardDot = document.getElementById('cloudStatusDot');
+    const cardLabel = document.getElementById('cloudStatusLabel');
+    const cardDesc = document.getElementById('cloudStatusDesc');
+    const lastSyncEl = document.getElementById('lastSyncTime');
+    const syncBtn = document.getElementById('syncNowBtn');
+
+    const statusConfig = {
+      connected: {
+        dotClass: 'bg-emerald-500',
+        label: 'MongoDB Cloud Sync — Connected',
+        desc: 'Your data is synced with MongoDB Atlas. Changes are saved to the cloud automatically.',
+        title: 'Cloud Sync: Connected ✓',
+        animate: false
+      },
+      syncing: {
+        dotClass: 'bg-amber-400',
+        label: 'MongoDB Cloud Sync — Syncing...',
+        desc: 'Syncing data with MongoDB Atlas...',
+        title: 'Cloud Sync: Syncing...',
+        animate: true
+      },
+      offline: {
+        dotClass: 'bg-slate-400',
+        label: 'MongoDB Cloud Sync — Offline',
+        desc: 'Backend server not reachable. Data is saved locally. Start the server to enable cloud sync.',
+        title: 'Cloud Sync: Offline — Start server with npm start',
+        animate: false
+      },
+      error: {
+        dotClass: 'bg-rose-500',
+        label: 'MongoDB Cloud Sync — Error',
+        desc: 'Connected to server but MongoDB is not responding. Check your .env configuration.',
+        title: 'Cloud Sync: Database Error',
+        animate: false
+      }
+    };
+
+    const config = statusConfig[this._status] || statusConfig.offline;
+
+    // Update header dot
+    if (headerDot) {
+      headerDot.className = `absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-900 transition-colors ${config.dotClass}`;
+      if (config.animate) headerDot.classList.add('animate-pulse');
+    }
+    if (headerBtn) {
+      headerBtn.title = config.title;
+    }
+
+    // Update card
+    if (cardDot) {
+      cardDot.className = `inline-block w-2.5 h-2.5 rounded-full transition-colors ${config.dotClass}`;
+      if (config.animate) cardDot.classList.add('animate-pulse');
+    }
+    if (cardLabel) cardLabel.textContent = config.label;
+    if (cardDesc) cardDesc.textContent = config.desc;
+
+    // Update last sync time
+    if (lastSyncEl && this._lastSync) {
+      const timeStr = this._lastSync.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      lastSyncEl.textContent = `Last synced: ${timeStr}`;
+    }
+
+    // Update sync button
+    if (syncBtn) {
+      if (this._isSyncing) {
+        syncBtn.disabled = true;
+        syncBtn.classList.add('opacity-60', 'cursor-not-allowed');
+      } else {
+        syncBtn.disabled = false;
+        syncBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    // Re-render lucide icons if available
+    if (window.lucide) {
+      try { lucide.createIcons(); } catch (e) { /* ignore */ }
+    }
+  },
+
+  /**
+   * Initialize UI controls (Sync Now button, header cloud button)
+   */
+  _initUIControls() {
+    const syncNowBtn = document.getElementById('syncNowBtn');
+    if (syncNowBtn) {
+      syncNowBtn.addEventListener('click', async () => {
+        await this.fullSync();
+        // Reload app state after sync
+        if (typeof AppState !== 'undefined' && typeof renderApp === 'function') {
+          AppState.expenses = StorageService.getExpenses();
+          AppState.currency = StorageService.getCurrency();
+          renderApp();
+        }
+        if (typeof showToast === 'function') {
+          if (this._status === 'connected') {
+            showToast('Cloud sync completed successfully! ☁️');
+          } else if (this._status === 'offline') {
+            showToast('Server offline — data saved locally only.', 'error');
+          } else {
+            showToast('Sync encountered an issue. Check server logs.', 'error');
+          }
+        }
+      });
+    }
+
+    const headerCloudBtn = document.getElementById('cloudSyncBtn');
+    if (headerCloudBtn) {
+      headerCloudBtn.addEventListener('click', async () => {
+        await this.fullSync();
+        if (typeof AppState !== 'undefined' && typeof renderApp === 'function') {
+          AppState.expenses = StorageService.getExpenses();
+          AppState.currency = StorageService.getCurrency();
+          renderApp();
+        }
+      });
+    }
+  }
+};
+
+/* ==========================================================================
+   MONKEY-PATCH StorageService to auto-sync changes to cloud
+   ========================================================================== */
+
+// Store original methods
+const _originalAddExpense = StorageService.addExpense.bind(StorageService);
+const _originalUpdateExpense = StorageService.updateExpense.bind(StorageService);
+const _originalDeleteExpense = StorageService.deleteExpense.bind(StorageService);
+const _originalClearAllExpenses = StorageService.clearAllExpenses.bind(StorageService);
+const _originalSaveUserProfile = StorageService.saveUserProfile.bind(StorageService);
+const _originalSaveBudget = StorageService.saveBudget.bind(StorageService);
+const _originalSaveCurrency = StorageService.saveCurrency.bind(StorageService);
+
+// Override with cloud-syncing versions
+StorageService.addExpense = function(expense) {
+  const result = _originalAddExpense(expense);
+  if (result) {
+    CloudSync.pushExpense(result).catch(() => {});
+  }
+  return result;
+};
+
+StorageService.updateExpense = function(updatedExpense) {
+  const result = _originalUpdateExpense(updatedExpense);
+  if (result) {
+    CloudSync.updateCloudExpense(result).catch(() => {});
+  }
+  return result;
+};
+
+StorageService.deleteExpense = function(id) {
+  const result = _originalDeleteExpense(id);
+  if (result) {
+    CloudSync.deleteCloudExpense(id).catch(() => {});
+  }
+  return result;
+};
+
+StorageService.clearAllExpenses = function() {
+  const result = _originalClearAllExpenses();
+  CloudSync.clearCloudExpenses().catch(() => {});
+  return result;
+};
+
+StorageService.saveUserProfile = function(profile) {
+  const result = _originalSaveUserProfile(profile);
+  CloudSync.pushUserData().catch(() => {});
+  return result;
+};
+
+StorageService.saveBudget = function(budget) {
+  const result = _originalSaveBudget(budget);
+  CloudSync.pushUserData().catch(() => {});
+  return result;
+};
+
+StorageService.saveCurrency = function(currencyCode) {
+  const result = _originalSaveCurrency(currencyCode);
+  CloudSync.pushUserData().catch(() => {});
+  return result;
+};
+
+// Override init to include cloud sync
+const _originalInit = StorageService.init.bind(StorageService);
+StorageService.init = async function() {
+  await _originalInit();
+  await CloudSync.init();
+};
+

@@ -88,6 +88,12 @@
         </select>
       </div>
 
+      <!-- Cloud Sync Status Indicator -->
+      <button id="cloudSyncBtn" type="button" class="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition" title="Cloud Sync Status: Checking...">
+        <i data-lucide="cloud" class="w-5 h-5"></i>
+        <span id="cloudSyncDot" class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-slate-400 border-2 border-white dark:border-gray-900 transition-colors"></span>
+      </button>
+
       <!-- Theme Toggle Button -->
       <button data-theme-toggle class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition" title="Toggle Light / Dark Mode">
         <i data-lucide="moon" class="w-5 h-5 theme-icon"></i>
@@ -262,22 +268,35 @@
     </div>
 
     <!-- ========================================================= -->
-    <!-- 4. MONTHLY EXPENSE RECORD WITH HIDE/SHOW (^) TOGGLE       -->
+    <!-- ========================================================= -->
+    <!-- 4. EXPENSE RECORDS WITH MONTH / ALL-TIME VIEW & HIDE TOGGLE -->
     <!-- ========================================================= -->
     <div class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm p-6 space-y-4">
       
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-gray-800">
         <div>
-          <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-            <span>Monthly Record:</span>
-            <span class="active-period-label text-indigo-600 dark:text-indigo-400 font-extrabold">August 2026</span>
-          </h3>
-          <p class="text-xs text-slate-400">All expenses logged for this month with edit and delete controls</p>
+          <div class="flex items-center space-x-2">
+            <h3 id="recordsSectionTitle" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+              <span>Expense Records:</span>
+              <span class="active-period-label text-indigo-600 dark:text-indigo-400 font-extrabold">August 2026</span>
+            </h3>
+          </div>
+          <p id="recordsSectionSubtitle" class="text-xs text-slate-400">All expenses logged with permanent IndexedDB + LocalStorage protection</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <!-- View Switcher (Monthly View vs All-Time View) -->
+          <div class="flex items-center bg-slate-100 dark:bg-gray-800 p-1 rounded-xl">
+            <button id="viewModeMonthBtn" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition" title="View spends for the selected month">
+              📅 Month View
+            </button>
+            <button id="viewModeAllBtn" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 transition" title="View all recorded expenses across all time">
+              🌐 All Spends (<span id="totalAllSpendsBadge">0</span>)
+            </button>
+          </div>
+
           <span id="monthlyCountBadge" class="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-xs font-bold text-slate-700 dark:text-slate-300">0 spends</span>
-          <span class="text-xs font-extrabold text-slate-900 dark:text-white">Month Total: <strong id="monthlyTotalDisplay" class="text-indigo-600 dark:text-indigo-400">₹0.00</strong></span>
+          <span class="text-xs font-extrabold text-slate-900 dark:text-white"><span id="tableTotalLabel">Month Total:</span> <strong id="monthlyTotalDisplay" class="text-indigo-600 dark:text-indigo-400">₹0.00</strong></span>
           
           <button data-open-side-drawer class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center space-x-1">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
@@ -285,14 +304,14 @@
           </button>
 
           <!-- ^ Toggle Button to Hide / Show Monthly Expense -->
-          <button id="toggleMonthlyRecordBtn" type="button" class="collapse-toggle-btn" title="Hide/Show Monthly Expense">
+          <button id="toggleMonthlyRecordBtn" type="button" class="collapse-toggle-btn" title="Hide/Show Expense List">
             <span class="toggle-text">Hide</span>
             <i data-lucide="chevron-up" class="w-4 h-4 toggle-icon"></i>
           </button>
         </div>
       </div>
 
-      <!-- Collapsible Body for Monthly Record -->
+      <!-- Collapsible Body for Records -->
       <div id="monthlyRecordBody" class="collapsible-body space-y-4">
         <!-- Quick Search & Category Filter -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -309,10 +328,30 @@
           </div>
         </div>
 
-        <!-- Empty State -->
+        <!-- Smart Notification Banner (when current month is empty but all-time has spends) -->
+        <div id="monthlyEmptyWithOtherSpends" class="hidden p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/60 text-indigo-900 dark:text-indigo-200 text-xs space-y-2 animate-fade-in">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="info" class="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0"></i>
+            <span class="font-bold text-sm">No expenses in <span class="active-period-label font-extrabold"></span></span>
+          </div>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+            Your records are <strong class="text-emerald-600 dark:text-emerald-400">safe & permanently saved</strong>! You have <strong id="otherSpendsCountText" class="text-indigo-600 dark:text-indigo-400">0</strong> expenses in other months.
+          </p>
+          <div class="pt-1 flex flex-wrap gap-2">
+            <button id="switchToAllTimeBtn" type="button" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center space-x-1.5">
+              <i data-lucide="list" class="w-3.5 h-3.5"></i>
+              <span>View All <span id="otherSpendsCountBtn"></span> Recorded Spends</span>
+            </button>
+            <button data-open-side-drawer type="button" class="px-3.5 py-1.5 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-50 transition">
+              + Log Spend for <span class="active-period-label font-bold"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Clean Zero Slate Empty State (when user truly has 0 total expenses) -->
         <div id="monthlyEmptyState" class="hidden text-center py-12 text-slate-400 space-y-3">
           <i data-lucide="inbox" class="w-10 h-10 mx-auto opacity-50"></i>
-          <p class="text-sm font-medium">No spends recorded for <span class="active-period-label font-bold">this period</span>.</p>
+          <p class="text-sm font-medium">No spends recorded yet.</p>
           <button data-open-side-drawer class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow">
             + Record First Expense
           </button>
@@ -381,48 +420,83 @@
     </div>
 
     <!-- ========================================================= -->
-    <!-- 6. RELIABLE DATA STORAGE & BACKUP CONTROLS                -->
+    <!-- 6. PERMANENT DATA STORAGE & BACKUP CONTROLS               -->
     <!-- ========================================================= -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm text-xs">
-      <div class="flex items-center space-x-3">
-        <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-          <i data-lucide="shield-check" class="w-5 h-5"></i>
-        </div>
-        <div>
-          <div class="flex items-center space-x-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <p class="font-bold text-slate-800 dark:text-slate-100">Persistent Local Storage</p>
+    <div class="space-y-3">
+      <!-- Cloud Sync Status Card -->
+      <div id="cloudSyncCard" class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm text-xs">
+        <div class="flex items-center space-x-3">
+          <div id="cloudSyncIconBox" class="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="cloud" class="w-5 h-5"></i>
           </div>
-          <p class="text-[11px] text-slate-400 dark:text-slate-500">Your expenses are stored permanently in your browser and will never reset on reload.</p>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span id="cloudStatusDot" class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 transition-colors"></span>
+              <p id="cloudStatusLabel" class="font-extrabold text-slate-800 dark:text-slate-100">MongoDB Cloud Sync</p>
+            </div>
+            <p id="cloudStatusDesc" class="text-[11px] text-slate-500 dark:text-slate-400">
+              Checking cloud connection...
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="syncNowBtn" type="button" class="inline-flex items-center space-x-1.5 px-4 py-2 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 rounded-xl font-bold transition" title="Sync data with MongoDB Atlas now">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 cloud-sync-icon"></i>
+            <span>Sync Now</span>
+          </button>
+          <span id="lastSyncTime" class="text-[10px] text-slate-400 dark:text-slate-500 font-mono"></span>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <button id="exportCSVBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Export as CSV spreadsheet">
-          <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-500"></i>
-          <span>Download CSV</span>
-        </button>
+      <!-- Local Storage + Backup Controls -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-sm text-xs">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <p class="font-extrabold text-slate-800 dark:text-slate-100">Local Storage (IndexedDB + LocalStorage)</p>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+              Offline fallback — records mirrored locally with auto-eviction protection.
+            </p>
+          </div>
+        </div>
 
-        <button id="exportJSONBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Download entire backup as JSON file">
-          <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-500"></i>
-          <span>Backup JSON</span>
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="exportCSVBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Export as CSV spreadsheet">
+            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-500"></i>
+            <span>Download CSV</span>
+          </button>
 
-        <button id="importJSONBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Restore expenses from JSON backup">
-          <i data-lucide="upload" class="w-3.5 h-3.5 text-purple-500"></i>
-          <span>Import Backup</span>
-        </button>
-        <input type="file" id="importJSONFileInput" accept=".json" class="hidden">
+          <button id="exportJSONBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Download entire backup as JSON file">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-500"></i>
+            <span>Backup File</span>
+          </button>
 
-        <button id="reloadDemoDataBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Reset and populate sample college records">
-          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-amber-500"></i>
-          <span>Sample Records</span>
-        </button>
+          <button id="importJSONBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Restore expenses from JSON backup">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-purple-500"></i>
+            <span>Import Backup</span>
+          </button>
+          <input type="file" id="importJSONFileInput" accept=".json" class="hidden">
 
-        <button id="clearAllExpensesBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold transition" title="Clear all expense records">
-          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-          <span>Clear All</span>
-        </button>
+          <button id="restoreSnapshotBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-xl font-bold transition" title="Recover from internal auto-snapshot">
+            <i data-lucide="archive-restore" class="w-3.5 h-3.5 text-indigo-500"></i>
+            <span>Restore Snapshot</span>
+          </button>
+
+          <button id="reloadDemoDataBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-700 rounded-xl font-bold transition" title="Reset and populate sample college records">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-amber-500"></i>
+            <span>Sample Records</span>
+          </button>
+
+          <button id="clearAllExpensesBtn" class="inline-flex items-center space-x-1 px-3 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-xl font-bold transition" title="Clear all expense records">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            <span>Clear All</span>
+          </button>
+        </div>
       </div>
     </div>
 

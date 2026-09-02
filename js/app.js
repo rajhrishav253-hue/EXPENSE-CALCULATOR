@@ -24,6 +24,7 @@ const AppState = {
   currency: CURRENCIES.INR,
   selectedYear: new Date().getFullYear(),
   selectedMonth: new Date().getMonth(), // 0-indexed (7 for August)
+  viewMode: 'month', // 'month' or 'all'
   chartType: 'bar', // 'bar' or 'line'
   filters: {
     search: '',
@@ -49,7 +50,10 @@ function isCurrentMonthSelected() {
 }
 
 // Initialize Application
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize Dual-Storage Service (LocalStorage + IndexedDB + Storage Persist)
+  await StorageService.init();
+
   initTheme();
   initData();
   initUserAccounts();
@@ -58,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCollapseToggles();
   initAddExpenseForm();
   initMonthlyFilters();
+  initViewModeSwitcher();
   initChartControls();
   initModals();
   initLiveAmountInputs();
@@ -795,6 +800,34 @@ function initMonthlyFilters() {
 }
 
 /**
+ * View Switcher: Monthly View vs All-Time Spends History
+ */
+function initViewModeSwitcher() {
+  const monthBtn = document.getElementById('viewModeMonthBtn');
+  const allBtn = document.getElementById('viewModeAllBtn');
+  const switchToAllBtn = document.getElementById('switchToAllTimeBtn');
+
+  const setViewMode = (mode) => {
+    AppState.viewMode = mode;
+    if (monthBtn && allBtn) {
+      if (mode === 'month') {
+        monthBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition';
+        allBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 transition';
+      } else {
+        allBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition';
+        monthBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 transition';
+      }
+    }
+    renderMonthlyTable();
+    if (window.lucide) lucide.createIcons();
+  };
+
+  if (monthBtn) monthBtn.addEventListener('click', () => setViewMode('month'));
+  if (allBtn) allBtn.addEventListener('click', () => setViewMode('all'));
+  if (switchToAllBtn) switchToAllBtn.addEventListener('click', () => setViewMode('all'));
+}
+
+/**
  * Chart Controls
  */
 function initChartControls() {
@@ -1028,6 +1061,33 @@ function initDataBackupControls() {
     });
   }
 
+  // Restore from Auto-Snapshot Backup
+  const restoreSnapshotBtn = document.getElementById('restoreSnapshotBtn');
+  if (restoreSnapshotBtn) {
+    restoreSnapshotBtn.addEventListener('click', () => {
+      const snapshot = StorageService.getSnapshotBackup();
+      if (!snapshot || !Array.isArray(snapshot.expenses) || snapshot.expenses.length === 0) {
+        showToast('No auto-snapshot backup found yet in storage', 'error');
+        return;
+      }
+
+      showConfirmModal({
+        title: 'Restore Automatic Safety Snapshot',
+        message: `An auto-snapshot with ${snapshot.expenses.length} expenses from ${new Date(snapshot.timestamp).toLocaleString()} was found. Do you want to restore these records?`,
+        confirmBtnText: 'Restore Records',
+        confirmBtnClass: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+        onConfirm: () => {
+          StorageService.saveExpenses(snapshot.expenses);
+          if (snapshot.profile) StorageService.saveUserProfile(snapshot.profile);
+          if (snapshot.budget) StorageService.saveBudget(snapshot.budget);
+          AppState.expenses = StorageService.getExpenses();
+          renderApp();
+          showToast(`Successfully restored ${snapshot.expenses.length} records from safety snapshot!`);
+        }
+      });
+    });
+  }
+
   // Reload Sample Data (with user confirmation)
   if (reloadBtn) {
     reloadBtn.addEventListener('click', () => {
@@ -1232,15 +1292,45 @@ function renderCharts(stats) {
 }
 
 /**
- * Render Monthly Expense Table & Transactions with PROMINENT DELETE BUTTONS
+ * Render Expense Records Table (Supports Month View & All-Time History View)
  */
 function renderMonthlyTable() {
+  const isMonthView = AppState.viewMode === 'month';
   const periodPrefix = getSelectedPeriodKey();
   const search = AppState.filters.search;
   const category = AppState.filters.category;
+  const totalAllCount = AppState.expenses.length;
+
+  // Update Section Headers and Badges
+  const sectionTitle = document.getElementById('recordsSectionTitle');
+  const sectionSubtitle = document.getElementById('recordsSectionSubtitle');
+  const tableTotalLabel = document.getElementById('tableTotalLabel');
+  const totalAllBadge = document.getElementById('totalAllSpendsBadge');
+
+  if (totalAllBadge) totalAllBadge.textContent = totalAllCount;
+
+  if (isMonthView) {
+    if (sectionTitle) {
+      sectionTitle.innerHTML = `<span>Expense Records:</span> <span class="active-period-label text-indigo-600 dark:text-indigo-400 font-extrabold">${getSelectedPeriodLabel()}</span>`;
+    }
+    if (sectionSubtitle) {
+      sectionSubtitle.textContent = 'All expenses logged for this month with edit and delete controls';
+    }
+    if (tableTotalLabel) tableTotalLabel.textContent = 'Month Total:';
+  } else {
+    if (sectionTitle) {
+      sectionTitle.innerHTML = `<span>All-Time Records:</span> <span class="text-indigo-600 dark:text-indigo-400 font-extrabold">Complete Spend Diary (${totalAllCount})</span>`;
+    }
+    if (sectionSubtitle) {
+      sectionSubtitle.textContent = 'Complete chronological history of all recorded expenses across all months & years';
+    }
+    if (tableTotalLabel) tableTotalLabel.textContent = 'All-Time Total:';
+  }
 
   const filtered = AppState.expenses.filter(exp => {
-    if (!exp.date || !exp.date.startsWith(periodPrefix)) return false;
+    if (isMonthView) {
+      if (!exp.date || !exp.date.startsWith(periodPrefix)) return false;
+    }
     if (category !== 'all' && exp.category !== category) return false;
 
     if (search) {
@@ -1262,7 +1352,10 @@ function renderMonthlyTable() {
   const countBadge = document.getElementById('monthlyCountBadge');
   const totalDisplay = document.getElementById('monthlyTotalDisplay');
   const emptyState = document.getElementById('monthlyEmptyState');
+  const emptyWithOtherSpends = document.getElementById('monthlyEmptyWithOtherSpends');
   const tableContainer = document.getElementById('monthlyTableContainer');
+  const otherSpendsCountText = document.getElementById('otherSpendsCountText');
+  const otherSpendsCountBtn = document.getElementById('otherSpendsCountBtn');
 
   let filteredTotal = 0;
   filtered.forEach(e => { filteredTotal += e.amount; });
@@ -1271,13 +1364,26 @@ function renderMonthlyTable() {
   if (totalDisplay) totalDisplay.textContent = formatMoney(filteredTotal);
 
   if (filtered.length === 0) {
-    if (emptyState) emptyState.classList.remove('hidden');
     if (tableContainer) tableContainer.classList.add('hidden');
     if (tbody) tbody.innerHTML = '';
+
+    if (isMonthView && totalAllCount > 0 && !search && category === 'all') {
+      // Month is empty, but user has past/other records in diary!
+      if (emptyWithOtherSpends) {
+        emptyWithOtherSpends.classList.remove('hidden');
+        if (otherSpendsCountText) otherSpendsCountText.textContent = totalAllCount;
+        if (otherSpendsCountBtn) otherSpendsCountBtn.textContent = totalAllCount;
+      }
+      if (emptyState) emptyState.classList.add('hidden');
+    } else {
+      if (emptyWithOtherSpends) emptyWithOtherSpends.classList.add('hidden');
+      if (emptyState) emptyState.classList.remove('hidden');
+    }
     return;
   }
 
   if (emptyState) emptyState.classList.add('hidden');
+  if (emptyWithOtherSpends) emptyWithOtherSpends.classList.add('hidden');
   if (tableContainer) tableContainer.classList.remove('hidden');
 
   if (tbody) {
